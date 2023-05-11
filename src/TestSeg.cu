@@ -335,7 +335,9 @@ int main_test(int argc, char** argv) {
     //}
 
 
-    cv::Mat mask_mat_cpu(mask_mat_gpu);//full mask for
+    cv::Mat mask_mat_cpu;
+    
+    mask_mat_gpu.download(mask_mat_cpu);//full mask for
 
     cv::imshow("mask",mask_mat_cpu);
     cv::resize(mask_mat_cpu, mask_mat_cpu, cv::Size(960*4, 640));
@@ -434,13 +436,19 @@ std::vector<Detection> doInference_YoloV5(void *remote_buffers,
     }
     std::for_each(threadlist.begin(), threadlist.end(),[](std::thread* &th) {th->join();});
 
-    cv::cuda::resize(m_mask_mat_gpu, m_mask_mat_gpu_scaled, cv::Size(960*4, 160*4));
+    cv::Mat m_mask_mat_cpu_scaled, m_mask_mat_cpu;
+
+    m_mask_mat_gpu_scaled.download(m_mask_mat_cpu_scaled);
+    m_mask_mat_gpu.download(m_mask_mat_cpu);
+
+    cv::resize(m_mask_mat_cpu, m_mask_mat_cpu_scaled, cv::Size(960*4, 160*4));
 
 
 	if(1)
 	{
-		cv::Mat cuda_display(m_mask_mat_gpu_scaled);
-		cv::imshow("mat",cuda_display);
+		// cv::Mat cuda_display
+    // m_mask_mat_gpu_scaled.download(cuda_display);
+		cv::imshow("mat", m_mask_mat_cpu_scaled);
 	}
 
 	return all_Together;

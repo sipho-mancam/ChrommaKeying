@@ -7,7 +7,6 @@
  Description : CUDA compute reciprocals
  ============================================================================
  */
-
 #include <iostream>
 #include <numeric>
 #include <stdlib.h>
@@ -85,8 +84,6 @@ void InitSettingsWindows();
 using namespace cv; // all the new API is put into "cv" namespace. Export its content
 using namespace std;
 using namespace cv::cuda;
-
-
 
 
 bool bExite = false;
