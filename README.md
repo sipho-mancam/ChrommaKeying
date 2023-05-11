@@ -21,7 +21,7 @@ Software Dependencies:
  8. Eclipse (CDT) 
  9. G++ and GCC
 
-*** Please make sure that you install the Dependencies in this order ***
+***Please make sure that you install the Dependencies in this order***
 1. Cuda
 2. cuDNN
 3. TensorRT
