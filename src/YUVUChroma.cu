@@ -2141,21 +2141,9 @@ void ResetDetections(int iFrameCounter,bool bTrackReset)
 
 void ClassifyDetection(TrackedObj  *linked)
 {
-
 	YUV_Unpacked_Video;
 	linked->m_Detection.bbox[0];
-
-	cuda::sum;
 }
-
-
-
-
-
-
-
-
-
 
 void DrawSnapShotDetectionsPTR(Mat *DrawingMat,bool bTrackReset)
 {
@@ -2298,14 +2286,6 @@ void DrawSnapShotDetectionsPTR(Mat *DrawingMat,bool bTrackReset)
 			}
 
 }
-
-
-
-
-
-
-
-
 
 
 

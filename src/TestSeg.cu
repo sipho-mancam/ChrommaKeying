@@ -161,11 +161,11 @@ cv::cuda::GpuMat m_mask_mat_gpu_scaled;
 
 int InitYolov5()
 {
-	  std::string wts_name = "";
-	  std::string engine_name = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/yolov5s-seg-27.engine";
-	  std::string labels_filename = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/ballsport.txt";
-	  float gd = 0.0f, gw = 0.0f;
-	  std::string img_dir="/home/jurie/Pictures/seg_test";
+	std::string wts_name = "";
+	std::string engine_name = "/home/jurie/Documents/Computer Vision/Workspace/CudaChromaUbuntu/src/res/yolov5s-seg-27.engine";
+	std::string labels_filename = "/home/jurie/Documents/Computer Vision/Workspace/CudaChromaUbuntu/src/res/labels.txt";
+	float gd = 0.0f, gw = 0.0f;
+	std::string img_dir="/home/jurie/Pictures/seg_test";
 
 
 	//
@@ -208,11 +208,11 @@ int InitYolov5()
 int main_test(int argc, char** argv) {
   cudaSetDevice(kGpuId);
 
-  std::string wts_name = "";
-  std::string engine_name = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/yolov5s-seg-27.engine";
-  std::string labels_filename = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/ballsport.txt";
-  float gd = 0.0f, gw = 0.0f;
-  std::string img_dir="/home/jurie/Pictures/seg_test";
+	std::string wts_name = "";
+	std::string engine_name = "res/yolov5s-seg-27.engine";
+	std::string labels_filename = "res/labels.txt";
+	float gd = 0.0f, gw = 0.0f;
+	std::string img_dir="/home/jurie/Pictures/seg_test";
 
 
   std::vector<std::string> file_names;
