@@ -11,10 +11,10 @@ The CudaChromaSoftware is a Seb4Vision software built to do the following:
 The Software is build on C/C++ and the Cuda Runtime.
 
 Dependencies:
- 1. [Cuda Toolkit - (11.2 - 11.6)]() 
- 2. [Nvidia TensorRT 8]()
- 3. [OpenCV 4.5.2 with CudaSupport]()
- 4. [cuDNN 8.9.]()
+ 1. [Cuda Toolkit - (11.2 - 11.6)](https://developer.nvidia.com/cuda-11-6-2-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=deb_local)   [- install instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) 
+ 2. [Nvidia TensorRT 8](https://developer.nvidia.com/nvidia-tensorrt-8x-download) [ - install instructions](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html)
+ 3. [OpenCV 4.5.2 with CudaSupport](https://gist.github.com/raulqf/f42c718a658cddc16f9df07ecc627be7)
+ 4. [cuDNN 8.9.](https://developer.nvidia.com/rdp/cudnn-download) [ - install instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html)
  5. Decklink 
  6. C++ Standard 9
 
