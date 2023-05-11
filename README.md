@@ -38,7 +38,7 @@ Hardware Dependencies:
 git clone https://github.com/juriev101/CudaChromaUbuntu.git 
 cd CudaChromaUbuntu
 ```
-3. open up eclipse and import the project into your workspace *make sure you check the "copy project to workspace checkbox."
+3. open up eclipse and import the project into your workspace *make sure you check the "copy project to workspace checkbox."*
 4. Navigate to the project->Properties->C/C++ build (expand)-> Settings-> NVCC linker-> libraries
 5. Add all the neccessary libraries from opencv, cuda and tensorrt
 6. Do the same with the include files
