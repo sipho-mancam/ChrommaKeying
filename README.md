@@ -18,6 +18,8 @@ Software Dependencies:
  5. Decklink 
  6. C++ Standard 9
  7. Ubuntu 20.04 (Focal)
+ 8. Eclipse
+ 9. G++ and GCC
 
 Hardware Dependencies:
 1. Decklink Card
@@ -33,4 +35,8 @@ cd CudaChromaUbuntu
 3. open up eclipse and import the project into your workspace *make sure you check the "copy project to workspace checkbox."
 4. Navigate to the project->Properties->C/C++ build (expand)-> Settings-> NVCC linker-> libraries
 5. Add all the neccessary libraries from opencv, cuda and tensorrt
-6. 
+6. Do the same with the include files
+7. Congratulations you are ready to run!!!! 
+
+*If there are any problems you face following these steps outlined above, <br /> please feel free to open up a git issue and we'll address it*
+
