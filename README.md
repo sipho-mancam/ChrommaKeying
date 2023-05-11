@@ -15,7 +15,7 @@ Software Dependencies:
  2. [Nvidia TensorRT 8](https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/secure/8.5.3/local_repos/nv-tensorrt-local-repo-ubuntu2004-8.5.3-cuda-11.8_1.0-1_amd64.deb) - [install instructions](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html)
  3. [OpenCV 4.5.2 with CudaSupport](https://gist.github.com/raulqf/f42c718a658cddc16f9df07ecc627be7)
  4. [cuDNN 8.9.](https://developer.nvidia.com/downloads/compute/cudnn/secure/8.9.1/local_installers/11.8/cudnn-local-repo-ubuntu2004-8.9.1.23_1.0-1_amd64.deb) - [install instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html)
- 5. Decklink 
+ 5. Black Magic Decklink SDK12.0 
  6. C++ Standard 9
  7. Ubuntu 20.04 (Focal)
  8. Eclipse (CDT) 
