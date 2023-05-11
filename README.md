@@ -12,17 +12,17 @@ The Software is build on C/C++ and the Cuda Runtime.
 
 Dependencies:
  1. [Cuda Toolkit - (11.2 - 11.6)]() 
- 2. [Nvidia TensorRT 8] ()
- 3. [OpenCV 4.5.2 with CudaSupport] ()
- 4. [cuDNN 8.9.] ()
+ 2. [Nvidia TensorRT 8]()
+ 3. [OpenCV 4.5.2 with CudaSupport]()
+ 4. [cuDNN 8.9.]()
  5. Decklink 
  6. C++ Standard 9
 
 ***Building Process***
 1. Make sure you have all the dependencies above working on your environment
-2. Clone the repository using <br /> <code>git clone https://github.com/juriev101/CudaChromaUbuntu.git </code>
+2. Clone the repository using <br /> <code></code>
 ```
-language bash
+git clone https://github.com/juriev101/CudaChromaUbuntu.git 
 cd CudaChromaUbuntu
 ```
 3. open up eclipse and import the project into your workspace *make sure you check the "copy project to workspace checkbox."
