@@ -17,6 +17,11 @@ Software Dependencies:
  4. [cuDNN 8.9.](https://developer.nvidia.com/rdp/cudnn-download) [ - install instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html)
  5. Decklink 
  6. C++ Standard 9
+ 7. Ubuntu 20.04 (Focal)
+
+Hardware Dependencies:
+1. Decklink Card
+2. Nvidia Cuda Enabled GPU (Compute >=5)
 
 ***Building Process***
 1. Make sure you have all the dependencies above working on your environment
