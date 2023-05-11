@@ -18,7 +18,7 @@ Software Dependencies:
  5. Decklink 
  6. C++ Standard 9
  7. Ubuntu 20.04 (Focal)
- 8. Eclipse
+ 8. Eclipse (CDT) 
  9. G++ and GCC
 
 Hardware Dependencies:
