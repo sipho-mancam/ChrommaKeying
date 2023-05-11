@@ -20,7 +20,7 @@ Dependencies:
 
 ***Building Process***
 1. Make sure you have all the dependencies above working on your environment
-2. Clone the repository using <br /> <code></code>
+2. Clone the repository using
 ```
 git clone https://github.com/juriev101/CudaChromaUbuntu.git 
 cd CudaChromaUbuntu
