@@ -21,6 +21,12 @@ Software Dependencies:
  8. Eclipse (CDT) 
  9. G++ and GCC
 
+***Please make sure that you install the Dependencies in this order ***
+1. Cuda
+2. cuDNN
+3. TensorRT
+4. OpenCV
+
 Hardware Dependencies:
 1. Decklink Card
 2. Nvidia Cuda Enabled GPU (Compute >=5)
@@ -37,6 +43,7 @@ cd CudaChromaUbuntu
 5. Add all the neccessary libraries from opencv, cuda and tensorrt
 6. Do the same with the include files
 7. Congratulations you are ready to run!!!! 
+
 
 *If there are any problems you face following these steps outlined above, <br /> please feel free to open up a git issue and we'll address it*
 
