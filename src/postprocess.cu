@@ -58,26 +58,78 @@ static bool cmp(const Detection& a, const Detection& b) {
 	return a.conf > b.conf;
 }
 
-void nms(std::vector<Detection>& res, float* output, float conf_thresh,
+int GetOffset(int b)
+{
+	switch(b){
+		case 0:
+			return 0;
+			break;
+		case 1:
+			return 427;
+			break;
+
+		case 2:
+			return 853;
+			break;
+
+		case 3:
+			return 1280;
+			break;
+
+		case 4:
+				return 0+1920;
+				break;
+			case 5:
+				return 427+1920;
+				break;
+
+			case 6:
+				return 853+1920;
+				break;
+
+			case 7:
+				return 1280+1920;
+				break;
+		default :
+			return 0;
+			break;
+		}
+	return 0;
+}
+
+void nms(std::vector<Detection>& res, float* output /*Output Buffer from "infer" func*/, float conf_thresh,
 		float nms_thresh) {
 	int det_size = sizeof(Detection) / sizeof(float);
 	std::map<float, std::vector<Detection>> m;
+	// collect all the output boxes into a map
 	for (int i = 0; i < output[0] && i < kMaxNumOutputBbox; i++) {
 		if (output[1 + det_size * i + 4] <= conf_thresh)
 			continue;
+
+		// load the ouput from the inference into a Detection object.
+		// The float is aligned with the Detection structure using "alignas" on struct def.
+		// That's why the copy below is possible.
 		Detection det;
 		memcpy(&det, &output[1 + det_size * i], det_size * sizeof(float));
+
+		// check if the detections belonging to this class are already appended
 		if (m.count(det.class_id) == 0)
+			// if no such detection, create a new instance of such and id
 			m.emplace(det.class_id, std::vector<Detection>());
+		// append the detection to those matching it
 		m[det.class_id].push_back(det);
 	}
+	// iterate over all the detections packed by class
 	for (auto it = m.begin(); it != m.end(); it++) {
-		auto& dets = it->second;
-		std::sort(dets.begin(), dets.end(), cmp);
+		auto& dets = it->second; // vector from the map.
+		// sort the detections in the list of detections per class using confidence.
+		std::sort(dets.begin(), dets.end(), cmp); // sort the detections by confidence
+
 		for (size_t m = 0; m < dets.size(); ++m) {
 			auto& item = dets[m];
 			res.push_back(item);
 			for (size_t n = m + 1; n < dets.size(); ++n) {
+
 				if (iou(item.bbox, dets[n].bbox) > nms_thresh) {
 					dets.erase(dets.begin() + n);
 					--n;
@@ -87,12 +139,14 @@ void nms(std::vector<Detection>& res, float* output, float conf_thresh,
 	}
 }
 
-void batch_nms(std::vector<std::vector<Detection>>& res_batch, float *output,
-		int batch_size, int output_size, float conf_thresh, float nms_thresh) {
+void batch_nms(std::vector<std::vector<Detection>>& res_batch, float *output, int batch_size, int output_size, float conf_thresh, float nms_thresh) {
+
 	res_batch.resize(batch_size);
+
 	for (int i = 0; i < batch_size; i++) {
 		nms(res_batch[i], &output[i * output_size], conf_thresh, nms_thresh);
 	}
+
 }
 
 void draw_bbox(std::vector<cv::Mat>& img_batch,

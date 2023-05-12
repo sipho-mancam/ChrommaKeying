@@ -298,7 +298,7 @@ int main_test(int argc, char** argv) {
    // {
     auto start_pre = std::chrono::system_clock::now();
     // Preprocess
-    cuda_batch_preprocess(img_batch, gpu_buffers[0], kInputW, kInputH, stream);
+    cuda_batch_preprocess(img_batch, gpu_buffers[0]/*Buffer containing images*/, kInputW, kInputH, stream);
 
     // Run inference
     auto start = std::chrono::system_clock::now();
@@ -323,6 +323,8 @@ int main_test(int argc, char** argv) {
 
       std::thread *first = new std::thread(process_mask_to_final,&mask_mat_gpu,b,&gpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
       threadlist.push_back(first);
+
+//      draw_mask_bbox(img, res, masks, labels_map);
      // break;
 
     }
@@ -344,24 +346,24 @@ int main_test(int argc, char** argv) {
     std::cout << mask_mat_cpu.cols <<" "<< mask_mat_cpu.rows<< std::endl;
   //  cv::waitKey(-1);
 
-    cv::Mat tt=cv::imread("/home/jurie/Pictures/202092_1928_10544.bmp");
-
-    std::cout << tt.cols <<" "<<tt.rows<<std::endl;
-
-    	for (int x = 0; x < tt.cols; x++) {
-    		for (int y = 0; y < tt.rows ; y++) {
-    			float val = mask_mat_cpu.at<float>(y, x);
-
-    			if (val <= 0.5)
-    				continue;
-    			tt.at<cv::Vec3b>(y, x)[0] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
-    			tt.at<cv::Vec3b>(y, x)[1] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
-    			tt.at<cv::Vec3b>(y, x)[2] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
-    		}
-    	}
-
-    cv::imshow("img",tt);
-    cv::waitKey(-1);
+//    cv::Mat tt=cv::imread("/home/jurie/Pictures/202092_1928_10544.bmp");
+//
+//    std::cout << tt.cols <<" "<<tt.rows<<std::endl;
+//
+//    	for (int x = 0; x < tt.cols; x++) {
+//    		for (int y = 0; y < tt.rows ; y++) {
+//    			float val = mask_mat_cpu.at<float>(y, x);
+//
+//    			if (val <= 0.5)
+//    				continue;
+//    			tt.at<cv::Vec3b>(y, x)[0] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
+//    			tt.at<cv::Vec3b>(y, x)[1] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
+//    			tt.at<cv::Vec3b>(y, x)[2] = tt.at<cv::Vec3b>(y, x)[0]/2*val;
+//    		}
+//    	}
+//
+//    cv::imshow("img",tt);
+//    cv::waitKey(-1);
 
 
 
@@ -408,21 +410,23 @@ float *GetSegmentedMask()
 	return (float*)m_mask_mat_gpu_scaled.data;
 }
 
-std::vector<Detection> doInference_YoloV5(void *remote_buffers,
-		float fnms) {
+std::vector<Detection> doInference_YoloV5(void *remote_buffers/*This contains image data*/,float fnms) {
 
 	int fcount = kBatchSize;
 	std::vector < std::vector < Detection >> batch_res(fcount);
 	std::vector<Detection> Balls;
 	std::vector<Detection> Persons;
 	std::vector<Detection> all_Together;
+
 	if (!bInitYolo)
 		return all_Together;
-	m_mask_mat_gpu.setTo(cv::Scalar(0));
+
+	m_mask_mat_gpu.setTo(cv::Scalar(0)); // is this the image?
 	m_gpu_buffers[0]=(float *)remote_buffers;
 	infer(*m_context, m_stream, (void**)m_gpu_buffers, m_cpu_output_buffer1/*, cpu_output_buffer2*/, kBatchSize);
 
     std::vector<std::vector<Detection>> res_batch;
+
     batch_nms(res_batch, m_cpu_output_buffer1, kBatchSize, kOutputSize1, kConfThresh, kNmsThresh);
     std::vector<std::thread*> threadlist;
 
@@ -430,6 +434,8 @@ std::vector<Detection> doInference_YoloV5(void *remote_buffers,
     {
 		std::vector<Detection> *res = &res_batch[b];
 		m_gpu_output_buffer2=(float* )m_gpu_buffers[2];
+
+//		draw_bbox(img, res);
 
 		std::thread *first = new std::thread(process_mask_to_final,&m_mask_mat_gpu,b,&m_gpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
 		threadlist.push_back(first);
