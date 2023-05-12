@@ -87,6 +87,94 @@ void nms(std::vector<Detection>& res, float* output, float conf_thresh,
 	}
 }
 
+
+
+int GetOffset(int b)
+{
+	switch(b){
+		case 0:
+			return 0;
+			break;
+		case 1:
+			return 427;
+			break;
+
+		case 2:
+			return 853;
+			break;
+
+		case 3:
+			return 1280;
+			break;
+
+		case 4:
+				return 0+1920;
+				break;
+			case 5:
+				return 427+1920;
+				break;
+
+			case 6:
+				return 853+1920;
+				break;
+
+			case 7:
+				return 1280+1920;
+				break;
+
+
+
+
+		default :
+			return 0;
+			break;
+		}
+	return 0;
+}
+
+void nms_to_single_panal(std::vector<Detection>& res, float *m_prob, float conf_thresh, float nms_thresh = 0.5,int iBatchCount=0,int iOutputSize=0) {
+
+	  std::map<float, std::vector<Detection>> m;
+for(int x=0;x<iBatchCount;x++)
+{
+	   int det_size = sizeof(Detection) / sizeof(float);
+	   float *output=m_prob+x*iOutputSize;
+
+
+	    for (int i = 0; i < output[0] && i < kClsNumClass; i++) {
+
+	        if (output[1 + det_size * i + 4] <= conf_thresh) continue;
+
+	        Detection det;
+	        memcpy(&det, &output[1 + det_size * i], det_size * sizeof(float));
+	        if (m.count(det.class_id) == 0)
+	        	m.emplace(det.class_id, std::vector<Detection>());
+	      //  else
+	        det.bbox[0]=det.bbox[0]+GetOffset(x);
+	        m[det.class_id].push_back(det);
+	    }
+}
+
+	    for (auto it = m.begin(); it != m.end(); it++) {
+	        //std::cout << it->second[0].class_id << " --- " << std::endl;
+	        auto& dets = it->second;
+
+	        std::sort(dets.begin(), dets.end(), cmp);
+
+	        for (size_t m = 0; m < dets.size(); ++m) {
+	            auto& item = dets[m];
+	            res.push_back(item);
+	            for (size_t n = m + 1; n < dets.size(); ++n) {
+	                if (iou(item.bbox, dets[n].bbox) > nms_thresh) {
+	                    dets.erase(dets.begin() + n);
+	                    --n;
+	                }
+	            }
+	        }
+	    }
+}
+
+
 void batch_nms(std::vector<std::vector<Detection>>& res_batch, float *output,
 		int batch_size, int output_size, float conf_thresh, float nms_thresh) {
 	res_batch.resize(batch_size);
@@ -175,8 +263,8 @@ __global__ void createmask_to_final_GPU_Para(float *maskDownload0, float *mask,i
 	e = 1.0f / (1.0f + expf(-e));
 	float *maskDownload_val = &maskDownload0[x + y * 960+iOffset];
 	if(e>0.5)
-	if(*maskDownload_val < e)
-		*maskDownload_val = 1;
+	while(*maskDownload_val < e)
+		*maskDownload_val = e;
 	//*maskDownload_val = 1.0;
 	// if(e>0.5)
 	//	 printf("%f\n",e);
@@ -301,10 +389,12 @@ void process_mask_to_final(cv::cuda::GpuMat *seg_mat,int batchindex, const float
 
 	std::vector<std::thread*> threadlist;
 	int iTest = 0;
+	//std::cout << "Output to final"<<dets->size()<<std::endl;
 	for (size_t i = 0; i < dets->size(); i++) {
 
 		std::thread *first = new std::thread(createmask_to_final,seg_mat,batchindex, iTest++,
 				(*dets)[i], proto, proto_size);
+		//std::cout << i << std::endl;
 		threadlist.push_back(first);
 
 	}

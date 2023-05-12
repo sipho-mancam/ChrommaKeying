@@ -157,6 +157,7 @@ float* m_cpu_output_buffer1 = nullptr;
 float* m_gpu_output_buffer2 = nullptr;
 cv::cuda::GpuMat m_mask_mat_gpu;
 cv::cuda::GpuMat m_mask_mat_gpu_scaled;
+cv::cuda::GpuMat m_mask_mat_gpu_scaled_snapshot;
 
 
 int InitYolov5()
@@ -405,9 +406,16 @@ float *GetSegmentedMask()
 {
 	return (float*)m_mask_mat_gpu_scaled.data;
 }
+float *GetSegmentedMaskSnapshot()
+{
+	return (float*)m_mask_mat_gpu_scaled_snapshot.data;
+}
+
+
+
 
 std::vector<Detection> doInference_YoloV5(void *remote_buffers,
-		float fnms) {
+		float fnms,bool bSnaphot) {
 
 	int fcount = kBatchSize;
 	std::vector < std::vector < Detection >> batch_res(fcount);
@@ -421,23 +429,26 @@ std::vector<Detection> doInference_YoloV5(void *remote_buffers,
 	infer(*m_context, m_stream, (void**)m_gpu_buffers, m_cpu_output_buffer1/*, cpu_output_buffer2*/, kBatchSize);
 
     std::vector<std::vector<Detection>> res_batch;
-    batch_nms(res_batch, m_cpu_output_buffer1, kBatchSize, kOutputSize1, kConfThresh, kNmsThresh);
+
+  //  nms_to_single_panal(all_Together, m_cpu_output_buffer1, kConfThresh,fnms, kBatchSize, kOutputSize1 );
+
+   batch_nms(res_batch, m_cpu_output_buffer1, kBatchSize, kOutputSize1, kConfThresh, fnms);
     std::vector<std::thread*> threadlist;
 
     for(int b=0;b<kBatchSize;b++)
     {
-		std::vector<Detection> *res = &res_batch[b];
+    	std::vector<Detection> *res = &res_batch[b];
 		m_gpu_output_buffer2=(float* )m_gpu_buffers[2];
-
 		std::thread *first = new std::thread(process_mask_to_final,&m_mask_mat_gpu,b,&m_gpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
 		threadlist.push_back(first);
     }
     std::for_each(threadlist.begin(), threadlist.end(),[](std::thread* &th) {th->join();});
-
     cv::cuda::resize(m_mask_mat_gpu, m_mask_mat_gpu_scaled, cv::Size(960*4, 160*4));
-
-
-	if(1)
+    if(bSnaphot)
+    {
+    	m_mask_mat_gpu_scaled.copyTo(m_mask_mat_gpu_scaled_snapshot);
+    }
+    if(0)
 	{
 		cv::Mat cuda_display(m_mask_mat_gpu_scaled);
 		cv::imshow("mat",cuda_display);

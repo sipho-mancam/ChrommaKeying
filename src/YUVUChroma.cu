@@ -24,8 +24,8 @@ inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ?
 uchar2* YUV_Upload_Video_YUV = 0;
 uchar2* YUV_Upload_Key = 0;/*KEY*/
 uchar2* YUV_Upload_Fill = 0;/*FILL*/
-
-extern std::vector<Detection> doInference_YoloV5(void *remote_buffers,float fnms);;
+extern float *GetSegmentedMaskSnapshot();
+extern std::vector<Detection> doInference_YoloV5(void *remote_buffers,float fnms,bool bSnaphot);;
 std::vector<Detection> Yolov5Detection;
 std::vector<Detection> SnapYolov5Detection;
 
@@ -1024,7 +1024,7 @@ __global__ void yuyvUnPackedToRGB_Plain(uint4* src_Unapc, uchar3* dst, int srcAl
 }
 
 
-__global__ void MaskToRGB(uchar *maskDownload0, uchar *maskDownload1, uchar *maskDownload2, uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height)
+__global__ void MaskToRGB(uchar *maskDownload0, uchar *maskDownload1, uchar *maskDownload2,float* yolomaskdata, uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height)
 {
 
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1032,11 +1032,7 @@ __global__ void MaskToRGB(uchar *maskDownload0, uchar *maskDownload1, uchar *mas
 
 	if (x >= srcAlignedWidth || y >= height)
 		return;
-
-	//maskDownload[y * dstAlignedWidth + (x * 2) + 0]
-
 	
-
 	dst[y * dstAlignedWidth + (x * 2) + 0].x = maskDownload0[y * dstAlignedWidth + (x * 2) + 0];
 	dst[y * dstAlignedWidth + (x * 2) + 0].y = maskDownload1[y * dstAlignedWidth + (x * 2) + 0];
 	dst[y * dstAlignedWidth + (x * 2) + 0].z = maskDownload2[y * dstAlignedWidth + (x * 2) + 0];
@@ -1044,9 +1040,6 @@ __global__ void MaskToRGB(uchar *maskDownload0, uchar *maskDownload1, uchar *mas
 	dst[y * dstAlignedWidth + (x * 2) + 1].x = maskDownload0[y * dstAlignedWidth + (x * 2) + 0];
 	dst[y * dstAlignedWidth + (x * 2) + 1].y = maskDownload1[y * dstAlignedWidth + (x * 2) + 0];
 	dst[y * dstAlignedWidth + (x * 2) + 1].z = maskDownload2[y * dstAlignedWidth + (x * 2) + 0];
-
-
-
 }
 
 
@@ -1660,7 +1653,7 @@ void Launch_yuyv_Unpacked_UnpackedComBineData(int *iBlendPos0, int *iBlendPos1, 
 		const dim3 blockRGB(16, 16);
 		const dim3 gridRGB(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x), iDivUp(1080, blockRGB.y));
 		const int dstAlignedWidthRGB = 1920;
-
+	//	float *
 		switch (bOutPutSnap)
 		{
 		case 0:
@@ -1674,7 +1667,10 @@ void Launch_yuyv_Unpacked_UnpackedComBineData(int *iBlendPos0, int *iBlendPos1, 
 			yuyvUnPackedToRGB << <gridRGB, blockRGB >> > ((uint4 *)YUV_Unpacked_Key, DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
 			break;
 		case 3:
-			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2], DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
+			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
+			break;
+		case 4:
+			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
 			break;
 
 		}
@@ -3382,7 +3378,7 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 	double dBlendPos = iBlendPos0 / 876.0;
 
 
-		//if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0 && maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
+		if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0 && maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
 		if (maskUpload1[y * dstAlignedWidth + (x * 2) + 0] == 0 || maskUpload1[y * dstAlignedWidth + (x * 2) + 1] == 0)
 		{
 			if (Parabolic.w)
@@ -3407,7 +3403,7 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 			calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
 		}
 		else
-		//	if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0)
+			if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0)
 				if (maskUpload1[y * dstAlignedWidth + (x * 2) + 0] == 0)
 			{
 				if (Parabolic.w)
@@ -3433,7 +3429,7 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 
 			}
 			else
-			//	if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
+				if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
 					if (maskUpload1[y * dstAlignedWidth + (x * 2) + 1] == 0)
 				{
 					if (Parabolic.w)
@@ -3935,7 +3931,7 @@ void PrepareYoloData(bool bTakeMask,float fnms)
 
 	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>>((uint4*) (YUV_Unpacked_Video+dstAlignedWidthUnpackedData),(uint8_t *) m_RGBScaledFramePlanarDetectorptrs[4], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[5], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[6], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[7], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
 	CUDA_CHECK_RETURN(cudaDeviceSynchronize());
-	Yolov5Detection=doInference_YoloV5(m_RGBScaledFramePlanarDetector,fnms);
+	Yolov5Detection=doInference_YoloV5(m_RGBScaledFramePlanarDetector,fnms,bTakeMask);
 	if(bTakeMask)
 		SnapYolov5Detection=Yolov5Detection;
 

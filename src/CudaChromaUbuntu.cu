@@ -1067,6 +1067,8 @@ void UpdateLookupFromMouse()
 #define VK_F2 191
 #define VK_F3 192
 #define VK_F4 193
+#define VK_F5 194
+
 #define VK_F10 199
 int iKey;
 void UpdateKeyState()
@@ -1183,6 +1185,7 @@ int main()
 		initPosUDPData();
 		Mat RGB__Draw;
 		Mat RGB_Output;
+		Mat RGB_saving;
 	//	std::vector<Yolo_Big::Detection> DetectionS;
 
 		bool bstart = false;
@@ -1433,6 +1436,11 @@ int main()
 				bTakeOutput = 3;
 				//		while (GetAsyncKeyState(VK_F3));
 			}
+			if (GetAsyncKeyState(VK_F5))
+			{
+				bTakeOutput = 4;
+				//		while (GetAsyncKeyState(VK_F3));
+			}
 
 			if (GetAsyncKeyState(VK_F10))
 				CameraZero();
@@ -1443,11 +1451,10 @@ int main()
 				std::time_t result = std::time(nullptr);
 				std::string  FileName= toString(result);
 				FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName;
-				std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
+				std::thread t1(SaveImageThread,RGB_saving.clone(),iIndex++,FileAndPathName);
 				t1.join();
 				if(iIndex==4)
 					iIndex=0;
-
 			}
 //				iLastCheck = 1;
 //				if (!GetAsyncKeyState(VK_LCONTROL))
@@ -1461,6 +1468,8 @@ int main()
 			{
 			//	std::cout << "waiting" << std::endl;
 				mtxScreenCard.lock();
+				RGB_saving=RGB_Output.clone();
+
 				RGB_Output_Cuda.download(RGB_Output);
 				iFrameIndex++;
 			//	std::cout << iFrameIndex << std::endl;
