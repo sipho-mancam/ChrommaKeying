@@ -772,7 +772,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 			Launch_yuyv_Unpacked_GenerateMask(0, 0,bAutoTrain);//
 			Launch_yuyvDilateAndErode(FourSettings[0].m_iErode, FourSettings[0].m_iDilate, 0);
 			Launch_yuyv_Unpacked_GenerateMask_yolo_seg(0, 1,bAutoTrain,GetSegmentedMask());//
-			Launch_yuyvDilateAndErode(FourSettings[1].m_iErode, FourSettings[1].m_iDilate, 1);
+			//Launch_yuyvDilateAndErode(FourSettings[1].m_iErode, FourSettings[1].m_iDilate, 1);
 
 		#endif
 
@@ -1466,11 +1466,13 @@ int main()
 
 			if (myThreadData.bUpdateRGB_Preview)
 			{
+				myThreadData.bUpdateRGB_Preview = false;
 			//	std::cout << "waiting" << std::endl;
 				mtxScreenCard.lock();
-				RGB_saving=RGB_Output.clone();
+
 
 				RGB_Output_Cuda.download(RGB_Output);
+				RGB_saving=RGB_Output.clone();
 				iFrameIndex++;
 			//	std::cout << iFrameIndex << std::endl;
 				if(0)
@@ -1501,7 +1503,7 @@ int main()
 				//writeframe(RGB_Output);
 				bstart = true;
 			//	bTakeOutput = 0;
-				myThreadData.bUpdateRGB_Preview = false;
+
 			//	bTakeMask = true;
 				mtxScreenCard.unlock();
 			}

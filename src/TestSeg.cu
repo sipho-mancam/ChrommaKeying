@@ -430,7 +430,7 @@ std::vector<Detection> doInference_YoloV5(void *remote_buffers,
 
     std::vector<std::vector<Detection>> res_batch;
 
-  //  nms_to_single_panal(all_Together, m_cpu_output_buffer1, kConfThresh,fnms, kBatchSize, kOutputSize1 );
+    nms_to_single_panal(all_Together, m_cpu_output_buffer1, kConfThresh,fnms, kBatchSize, kOutputSize1 );
 
    batch_nms(res_batch, m_cpu_output_buffer1, kBatchSize, kOutputSize1, kConfThresh, fnms);
     std::vector<std::thread*> threadlist;
