@@ -309,7 +309,10 @@ void  CallThisMouse(int event, int x, int y, int flags, void* userdata)
 
 
 	MouseMutex.lock();
+
+
 	Rect tt = getWindowImageRect("RGB Output");
+//	std::cout<<"I execute"<<std::endl;
 	//printf("\n\r%d %d %d %d %d %d\n", tt.x, tt.y, tt.width, tt.height,x,y);
 	double x1 = double(x)/(double)(tt.width)  * 1920.0;//window correction
 	double y1 = double(y)/(double)(tt.height) * 1080.0;//window correction
@@ -946,10 +949,7 @@ void on_opengl(void* param)
 	glEnd();
 	glFlush();
 
-
-
-
-
+//	std::cout<<"Finished Setting the window"<<std::endl;
 
 
 //	 glClear(GL_COLOR_BUFFER_BIT);
@@ -983,13 +983,18 @@ void initOpenCVWindows()
 
 	InitSettingsWindows();
 	UpdateSettingsWindow();
-	namedWindow("RGB Output",  WINDOW_OPENGL);
+	std::string rgbOutputWin = "RGB Output";
+	std::string frameInfoWin = "Frame Info";
+
+	namedWindow(rgbOutputWin,  WINDOW_NORMAL);
 	//namedWindow("RGB Output1",  WINDOW_OPENGL);
-	namedWindow("Frame Info", WINDOW_OPENGL);
+	namedWindow(frameInfoWin, WINDOW_NORMAL);
 //	namedWindow("Soccer Frame Info", WINDOW_OPENGL);
-	setMouseCallback("RGB Output", CallThisMouse, 0);
-   setOpenGlDrawCallback("RGB Output1", on_opengl, 0);
-   updateWindow("RGB Output1");
+	setMouseCallback(rgbOutputWin, CallThisMouse, 0);
+//	setOpenGlDrawCallback(rgbOutputWin, on_opengl, 0);
+	updateWindow(rgbOutputWin);
+
+//	std::cout<<"I run"<<std::endl;
 
 }
 
@@ -1019,6 +1024,7 @@ void UpdateLookupFromMouse()
 		if (bEnableClick)
 		if (MouseData1.bHandleLDown)
 		{
+
 			//MASK->setTo(0);
 			//rectangle(*MASK, Rect(Point(MouseData1.iXDownDynamic, MouseData1.iYDownDynamic), Point(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic)), Scalar(255), CV_FILLED);
 
@@ -1144,6 +1150,7 @@ int main()
 
 	if (1)
 	{
+
 #ifndef PREVIEW_OUTPUTRENDER
 
 		initCameraUDPData();
@@ -1569,6 +1576,8 @@ int main()
 //			}
 			if (GetAsyncKeyState(27))//"Esc"
 			{
+				// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
+//				delete RGB__Draw.data;
 				bExitWorkerThread = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				EndLoop();

@@ -2141,7 +2141,7 @@ void ClassifyDetection(TrackedObj  *linked)
 	YUV_Unpacked_Video;
 	linked->m_Detection.bbox[0];
 
-	cuda::sum;
+//	cuda::sum;
 }
 
 

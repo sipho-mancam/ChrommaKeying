@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <chrono>
+#include <cstdlib>
 #include <cmath>
 
 using namespace nvinfer1;
@@ -162,31 +163,19 @@ cv::cuda::GpuMat m_mask_mat_gpu_scaled_snapshot;
 
 int InitYolov5()
 {
+		char *cwd = getenv("CWD");
+		std::string rootDir(cwd);
+//		std::cout<<rootDir<<std::endl;
+
 	  std::string wts_name = "";
-	  std::string engine_name = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/yolov5s-seg-27.engine";
-	  std::string labels_filename = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/ballsport.txt";
+	  std::string engine_name = rootDir+"/res/yolov5s-seg-27.engine";
+	  std::string labels_filename = rootDir+"/res/labels.txt";
 	  float gd = 0.0f, gw = 0.0f;
 	  std::string img_dir="/home/jurie/Pictures/seg_test";
 
-
-	//
-	//	  // Create a model using the API directly and serialize it to a file
-	//	  if (!wts_name.empty()) {
-	//	    serialize_engine(kBatchSize, gd, gw, wts_name, engine_name);
-	//	    return 0;
-	//	  }
-
-	  // Deserialize the engine from file
-	 // IRuntime* runtime = nullptr;
-	//  ICudaEngine* engine = nullptr;
-	 // IExecutionContext* context = nullptr;
 	  deserialize_engine(engine_name, &m_runtime, &m_engine, &m_context);
 	  //cudaStream_t stream;
 	  CUDA_CHECK(cudaStreamCreate(&m_stream));
-
-
-
-
 
 	  prepare_buffers(m_engine, &m_gpu_buffers[0], &m_gpu_buffers[1], &m_gpu_buffers[2], &m_cpu_output_buffer1);
 
@@ -210,8 +199,8 @@ int main_test(int argc, char** argv) {
   cudaSetDevice(kGpuId);
 
   std::string wts_name = "";
-  std::string engine_name = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/yolov5s-seg-27.engine";
-  std::string labels_filename = "/home/jurie/cuda-chroma-segment/TestSeg/Debug/ballsport.txt";
+  std::string engine_name = "/home/jurie/Documents/Computer Vision/old_code/ChromaSV2/cuda-chroma-segment/yolov5s-seg-27.engine";
+  std::string labels_filename = "/home/jurie/Documents/Computer Vision/Workspace/CudaChromaUbuntu/resources/labels.txt";
   float gd = 0.0f, gw = 0.0f;
   std::string img_dir="/home/jurie/Pictures/seg_test";
 
@@ -443,7 +432,17 @@ std::vector<Detection> doInference_YoloV5(void *remote_buffers,
 		threadlist.push_back(first);
     }
     std::for_each(threadlist.begin(), threadlist.end(),[](std::thread* &th) {th->join();});
-    cv::cuda::resize(m_mask_mat_gpu, m_mask_mat_gpu_scaled, cv::Size(960*4, 160*4));
+
+    cv::Mat m_mask_mat_cpu , m_mask_mat_cpu_scaled;
+
+    m_mask_mat_gpu.download(m_mask_mat_cpu);
+    m_mask_mat_gpu_scaled.download(m_mask_mat_cpu_scaled);
+
+    cv::resize(m_mask_mat_cpu, m_mask_mat_cpu_scaled, cv::Size(960*4, 160*4));
+
+    m_mask_mat_gpu.upload(m_mask_mat_cpu);
+//    m_mask_mat_gpu_scaled.download(m_mask_mat_cpu_scaled);
+
     if(bSnaphot)
     {
     	m_mask_mat_gpu_scaled.copyTo(m_mask_mat_gpu_scaled_snapshot);
