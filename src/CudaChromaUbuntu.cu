@@ -8,9 +8,6 @@
  ============================================================================
 
  This is the programs main entry point.
-
-
-
  */
 
 #include <iostream>
@@ -53,24 +50,12 @@
 #include <iostream>       // std::cout
 #include "PosisionUpdateUDP.h"
 
-//#include <C:\Users\jurie\Documents\opencv\sources\modules\cudafilters\include\opencv2/cudafilters.hpp>
-
-//#include "DeckLinkAPIVersion.h"
-
-
-
-//#define PREVIEW_OUTPUTRENDER
-//#define DISPLAY_I_TIMINGS
-
-
 #define MAX_PATH 260
-
 
 extern void initPosUDPData();
 extern void StartMonitor();
 extern void ExitMonitor();
 extern bool bGenGenlockStatus();
-// Utilities and timing functions
 extern bool TestDetectionsPTR(int mousex,int mousey);
 extern void initCameraUDPData();
 extern void InitResnet18();
@@ -79,7 +64,6 @@ extern int Classify(cv::Mat img_size);
 extern int InitYolov5();
 extern void CameraZero();
 extern float *GetSegmentedMask();
-//https://arxiv.org/pdf/1912.05445.pdf
 extern int writeframe(cv::Mat frame);
 
 
@@ -90,9 +74,6 @@ void InitSettingsWindows();
 using namespace cv; // all the new API is put into "cv" namespace. Export its content
 using namespace std;
 using namespace cv::cuda;
-
-
-
 
 bool bExite = false;
 bool bClearOutPut =false;
@@ -264,148 +245,103 @@ void  MouseUV_FRAME_INFO(int event, int x, int y, int flags, void* userdata)
 	case EVENT_LBUTTONDOWN:
 		MouseData3.iXDown = x;
 		MouseData3.iYDown = y;
-
 		break;
 
 	case EVENT_RBUTTONDOWN:
-
 		MouseData3.iXDown = x;
 		MouseData3.iYDown = y;
-
 		break;
 
 	case EVENT_LBUTTONUP:
 		MouseData3.bHandleLDown = true;
-		//	bHandleL = true;
 		MouseData3.iXUp = x;
 		MouseData3.iYUp = y;
-
 		break;
+
 	case EVENT_RBUTTONUP:
 		MouseData3.bHandleRDown = true;
-		//	bHandleR = true;
 		MouseData3.iXUp = x;
 		MouseData3.iYUp = y;
-
 		break;
 
-
 	case EVENT_MOUSEMOVE:
-		//	if (bHandleRDown || bHandleLDown)
-	{
-
 		MouseData3.iXUpDynamic = x - 10;
 		MouseData3.iYUpDynamic = y - 10;
 		MouseData3.iXDownDynamic = x + 10;
 		MouseData3.iYDownDynamic = y + 10;
-
+		break;
 	}
-
-	break;
-	}
-
-
-
 }
- int iRecsize = 4;
+
+
+int iRecsize = 4;
 void  CallThisMouse(int event, int x, int y, int flags, void* userdata)
 {
-	//Rect t= getWindowImageRect("RGB Output");
-
-
 	MouseMutex.lock();
-
-
 	Rect tt = getWindowImageRect("RGB Output");
-//	std::cout<<"I execute"<<std::endl;
-	//printf("\n\r%d %d %d %d %d %d\n", tt.x, tt.y, tt.width, tt.height,x,y);
 	double x1 = double(x)/(double)(tt.width)  * 1920.0;//window correction
 	double y1 = double(y)/(double)(tt.height) * 1080.0;//window correction
-//	printf("%d %d %d %d %f %f\n\r", tt.x, tt.y, tt.width, tt.height, x1, y1);
 
 	switch (event)
 	{
-
-
-	case EVENT_MOUSEWHEEL ://!< positive and negative values mean forward and backward scrolling, respectively.
-		if (flags > 0)
-		{
-			if(iRecsize>1)
+		case EVENT_MOUSEWHEEL ://!< positive and negative values mean forward and backward scrolling, respectively.
+			if (flags > 0)
+			{
+				if(iRecsize>1)
 				iRecsize--;
-		}
-		else
-		{
-			iRecsize++;
+			}
+			else
+			{
+				iRecsize++;
+				if (iRecsize > 20)iRecsize = 20;
+			}
 
-			if (iRecsize > 20)
-				iRecsize = 20;
-		}
+			MouseData1.iXUpDynamic = x1 - iRecsize;
+			MouseData1.iYUpDynamic = y1 - iRecsize + 4;
+			MouseData1.iXDownDynamic = x1 + iRecsize;
+			MouseData1.iYDownDynamic = y1 + iRecsize + 4;
+			break;
 
-		MouseData1.iXUpDynamic = x1 - iRecsize;
-		MouseData1.iYUpDynamic = y1 - iRecsize + 4;
-		MouseData1.iXDownDynamic = x1 + iRecsize;
-		MouseData1.iYDownDynamic = y1 + iRecsize + 4;
+		case EVENT_LBUTTONDOWN:
+			TestDetectionsPTR(x1,y1);
+			MouseData1.iXDown = x1;
+			MouseData1.iYDown = y1;
+			MouseData1.iXUpDynamic = x1 - iRecsize;
+			MouseData1.iYUpDynamic = y1 - iRecsize + 4;
+			MouseData1.iXDownDynamic = x1 + iRecsize;
+			MouseData1.iYDownDynamic = y1 + iRecsize + 4;
+			MouseData1.bHandleLDown = true;
+			break;
 
-		break;
+		case EVENT_RBUTTONDOWN:
+			MouseData1.iXDown = x1;
+			MouseData1.iYDown = y1;
+			MouseData1.bHandleRDown = true;
+			break;
 
+		case EVENT_LBUTTONUP:
+			MouseData1.bHandleLDown = false;
+			MouseData1.iXUp = x1;
+			MouseData1.iYUp = y1;
+			break;
 
-	case EVENT_LBUTTONDOWN:
+		case EVENT_RBUTTONUP:
+			MouseData1.bHandleRDown = false;
+			MouseData1.iXUp = x1;
+			MouseData1.iYUp = y1;
+			break;
 
-		TestDetectionsPTR(x1,y1);
-		MouseData1.iXDown = x1;
-		MouseData1.iYDown = y1;
-		MouseData1.iXUpDynamic = x1 - iRecsize;
-		MouseData1.iYUpDynamic = y1 - iRecsize + 4;
-		MouseData1.iXDownDynamic = x1 + iRecsize;
-		MouseData1.iYDownDynamic = y1 + iRecsize + 4;
-		MouseData1.bHandleLDown = true;
-		//std::cout << MouseData1.iXUpDynamic;
-		 break;
-
-	case EVENT_RBUTTONDOWN:
-
-		MouseData1.iXDown = x1;
-		MouseData1.iYDown = y1;
-		MouseData1.bHandleRDown = true;
-		break;
-
-	case EVENT_LBUTTONUP:
-		MouseData1.bHandleLDown = false;
-	//	bHandleL = true;
-		MouseData1.iXUp = x1;
-		MouseData1.iYUp = y1;
-
-		break;
-	case EVENT_RBUTTONUP:
-		MouseData1.bHandleRDown = false;
-	//	bHandleR = true;
-		MouseData1.iXUp = x1;
-		MouseData1.iYUp = y1;
-
-		break;
-
-
-	case EVENT_MOUSEMOVE:
-
-	//	if (bHandleRDown || bHandleLDown)
-		{
+		case EVENT_MOUSEMOVE:
 			MouseData1.iXUpDynamic = x1-iRecsize;
 			MouseData1.iYUpDynamic = y1- iRecsize+4;
 			MouseData1.iXDownDynamic = x1+ iRecsize;
 			MouseData1.iYDownDynamic = y1+ iRecsize+4;
-
-		}
-
-		MouseData1.x=x1;
-		MouseData1.y=y1;
-
-		break;
+			MouseData1.x=x1;
+			MouseData1.y=y1;
+			break;
 	}
-
 	MouseMutex.unlock();
 }
-
-
 
 bool EveryFrame_L = false;
 unsigned int iDelayFrames =1;
@@ -1078,6 +1014,7 @@ int main()
 		#ifndef PREVIEW_OUTPUTRENDER
 			initCameraUDPData();
 			initOpenCVWindows();
+
 			//InitVizSocket();
 		#endif
 
@@ -1278,7 +1215,7 @@ int main()
 				RGB_saving=RGB_Output.clone();
 				iFrameIndex++;
 
-				if(0)
+				if(0) // What's this?
 				if(iFrameIndex==50)
 				{
 					iFrameIndex=0;
@@ -1347,58 +1284,57 @@ int main()
 			}
 
 			if(0)
+			if ((bFrameTimer%20)==0)
 			{
-				if ((bFrameTimer%20)==0)
-				{
-					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-					imshow("Frame Info", RGB_FrameInfo_Cuda);
-				}
+				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+				Mat prev;
+				RGB_FrameInfo_Cuda.download(prev);
+				imshow("Frame Info", prev);
+			}
 
-				if (GetAsyncKeyState('i'))
-				{
-					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-					imshow("Frame Info", RGB_FrameInfo_Cuda);
-				}
+			if (GetAsyncKeyState('i'))
+			{
+				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+//					imshow("Frame Info", RGB_FrameInfo_Cuda);
+			}
 
-				UpdateLookupFromMouse();
-				UpdateKeyState();
+			UpdateLookupFromMouse();
+			UpdateKeyState();
 
-				if (GetAsyncKeyState(27))//"Esc"
+			if (GetAsyncKeyState(27))//"Esc"
+			{
+				// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
+				bExitWorkerThread = true;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				EndLoop();
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				std::cout << "Exit" << std::endl;
+				break;
+			}
+			if (bExite)
+			{
+				iExitCount++;
+				if (iExitCount == 100)
 				{
-					// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
-					bExitWorkerThread = true;
-					std::this_thread::sleep_for(std::chrono::milliseconds(100));
-					EndLoop();
-					std::this_thread::sleep_for(std::chrono::milliseconds(100));
-					std::cout << "Exit" << std::endl;
-					break;
+					bExite = false;
+					printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
 				}
+			}
+
+			if (GetAsyncKeyState('y'))
+			{
 				if (bExite)
 				{
-					iExitCount++;
-					if (iExitCount == 100)
-					{
-						bExite = false;
-						printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
-					}
+					bExitWorkerThread = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+					break;
 				}
 
-				if (GetAsyncKeyState('y'))
+				if (GetAsyncKeyState('n'))
 				{
-					if (bExite)
-					{
-						bExitWorkerThread = true;
-						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-						break;
-					}
-
-					if (GetAsyncKeyState('n'))
-					{
-						bExite = false;
-					}
+					bExite = false;
 				}
-
-			}
+			};
 		}
 	}
 

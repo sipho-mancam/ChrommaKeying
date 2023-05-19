@@ -425,15 +425,13 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 {
 
 
-
-
 	m_iWidth = iWidth;
 	m_iHeight = iHeight;
 	m_lFrameSizeYUV10Bit = iFrameSizeYUV10Bit;
 	cudaError_t cudaStatus;
 	cudaStatus = cudaMalloc((void**)&YUV_Upload_Key, iFrameSizeYUV10Bit);
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
+		fprintf(stderr, "cudaMalloc failed! Here");
 		return false;
 	}
 
@@ -4090,11 +4088,6 @@ void Launch_yuyvDilateAndErode( int iDilate, int iErode, int iUse)//https://docs
 }
 
 
-
-
-
-
-
 void Launch_Frame_Info(cuda::GpuMat *RGB_FrameInfo)
 {
 
@@ -4114,7 +4107,7 @@ void Launch_Frame_Info(cuda::GpuMat *RGB_FrameInfo)
 
 		cudaStatus = cudaMemset(FrameColorData_Unpacked, 0, (1024 / 2 * sizeof(uint4) * 1024));//4228250625
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
 			return;
 		}
 
