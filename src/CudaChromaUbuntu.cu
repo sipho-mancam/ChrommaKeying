@@ -1069,29 +1069,17 @@ void DrawMouseText(Mat *DrawingMat,string text,cv::Point r)
 
 int main()
 {
-
-
-
-//	InitResnet18();
-
-	//Classify(imread("/home/jurie/Pictures/resnet_test/1646501484_1_6.bmp"));
-
 	static int iIndex=0;
 	static int iFrameIndex=0;
-	//DestroyResnet18();
-
-
 	StartMonitor();
 
 	if (1)
 	{
-
-#ifndef PREVIEW_OUTPUTRENDER
-
-		initCameraUDPData();
-		initOpenCVWindows();
-		//InitVizSocket();
-#endif
+		#ifndef PREVIEW_OUTPUTRENDER
+			initCameraUDPData();
+			initOpenCVWindows();
+			//InitVizSocket();
+		#endif
 
 		cuda::GpuMat RGB_Output_Cuda;
 		RGB_Output_Cuda.create(1080, 1920, CV_8UC3);
@@ -1105,12 +1093,9 @@ int main()
 		RGB_FrameInfo_Cuda_FullUpdate.create(1024, 1024, CV_8UC3);
 		RGB_FrameInfo_Cuda_FullUpdate.step = 1024 * 3;
 
-
 		myThreadData.RGB_Output_Cuda = &RGB_Output_Cuda;
 		Mat		MASK_L(1080, 1920, CV_8UC1, Scalar(0));
 		myThreadData.MouseData1 = &MouseData1;
-	//	imshow("RGB Output", RGB_Output_Cuda);
-
 
 		pthread_t threads;
 		int rc;
@@ -1118,76 +1103,31 @@ int main()
 
 		if (rc)
 		{
-			cout << "Error:unable to create thread," << rc << endl;
+			cout << "[Error]: Unable to create thread! : " << rc << endl;
 			exit(-1);
 		}
-
-
 
 		initPosUDPData();
 		Mat RGB__Draw;
 		Mat RGB_Output;
 		Mat RGB_saving;
-	//	std::vector<Yolo_Big::Detection> DetectionS;
-
 		bool bstart = false;
 		bool bCapture=false;
 
-#ifdef PREVIEW_OUTPUTRENDER
-		while (1)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-		};
-#endif
 
+		#ifdef PREVIEW_OUTPUTRENDER
+			while (1)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			};
+		#endif
 
 		unsigned long UI_Frame_Counter=0;
+
 		while (1)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(40));
 			UI_Frame_Counter++;
-//			if (GetAsyncKeyState('s'))
-//			{
-//				//if (GetAsyncKeyState(VK_LCONTROL))
-//				{
-//					std::ofstream outfile("settings.crm", std::ofstream::binary);
-//					if (outfile.good())
-//					{
-//						outfile.seekp(ios_base::beg);
-//						outfile.write((char *)&FourSettings, sizeof(WindowSettings) * 3);
-//						outfile.close();
-//						printf("settings saved to settings.crm\n");
-//
-//					}
-//					else
-//					{
-//						printf("could not load settings\n");
-//					}
-//				}
-//			}
-//
-//
-//			if (GetAsyncKeyState('l'))
-//			{
-//				//if (GetAsyncKeyState(VK_LCONTROL))
-//				{
-//					std::ifstream  infile("settings.crm", std::ofstream::binary);
-//					if (infile.good())
-//					{
-//						infile.seekg(ios_base::beg);
-//						infile.read((char *)&FourSettings, sizeof(WindowSettings) * 3);
-//						infile.close();
-//						printf("settings loaded to settings.crm\n");
-//					}	else
-//					{
-//						printf("could not save settings\n");
-//					}
-//				}
-//
-//				UpdateSettingsWindow();
-//			//	while (GetAsyncKeyState('L'));
-//			}
-
 
 			if (GetAsyncKeyState('g'))
 			{
