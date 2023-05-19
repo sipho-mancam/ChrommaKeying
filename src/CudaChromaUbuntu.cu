@@ -1113,7 +1113,7 @@ int main()
 		Mat RGB_saving;
 		bool bstart = false;
 		bool bCapture=false;
-
+		static unsigned int bFrameTimer = 0;
 
 		#ifdef PREVIEW_OUTPUTRENDER
 			while (1)
@@ -1132,111 +1132,52 @@ int main()
 			if (GetAsyncKeyState('g'))
 			{
 				cudaLookUpFullKey();
-		//		while (GetAsyncKeyState('F'));
 			}
-
 
 			if (GetAsyncKeyState('r'))//||(UI_Frame_Counter%10)==0
 			{
 				cudaLookUpReset(0);
-			//	while (GetAsyncKeyState('R'));
 			}
 
 			if (GetAsyncKeyState('f'))//||(UI_Frame_Counter%10)==0
 			{
 				cudaLookUpReset(1);
-			//	while (GetAsyncKeyState('R'));
 			}
-
-//			if (GetAsyncKeyState('1'))
-//			{
-//				iUpdateIndex = 0;
-//				UpdateSettingsWindow();
-//				SetOnAirLookup(0);
-//				while (GetAsyncKeyState('1'));
-//
-//				setWindowTitle("Settings","Settings 1");
-//				setWindowTitle("RGB Output", "Settings 1");
-//			}
-//			if (GetAsyncKeyState('2'))
-//			{
-//				iUpdateIndex = 1;
-//				UpdateSettingsWindow();
-//				SetOnAirLookup(1);
-//				while (GetAsyncKeyState('2'));
-//
-//				setWindowTitle("Settings", "Settings 2");
-//				setWindowTitle("RGB Output", "Settings 2");
-//			}
-//			if (GetAsyncKeyState('3'))
-//			{
-//				iUpdateIndex = 2;
-//				UpdateSettingsWindow();
-//				SetOnAirLookup(2);
-//				while (GetAsyncKeyState('3'));
-//
-//				setWindowTitle("Settings", "Settings 3");
-//				setWindowTitle("RGB Output", "Settings 3");
-//			}
-			if (GetAsyncKeyState('P'))
-			{
-				//InKey->ClearAll();
-				//InFill->ClearAll();
-			//	while (GetAsyncKeyState('P'));
-			}
-
 
 			if (GetAsyncKeyState('o'))
 			{
 				bClearOutPut=true;
-				//InPut->ClearOutPut();
-			//	while (GetAsyncKeyState('O'));
 			}
-
 
 			if (GetAsyncKeyState('b'))
 			{
 				bBypass = !bBypass;
-			//	while (GetAsyncKeyState('B'));
 			}
 
 			if (GetAsyncKeyState('h'))
 			{
-				for(int x=0;x<10;x++)
-					printf("\n\r");
-				//printf("'1','2','3' � select user updateble lookup tables\n\r");
-				printf("'q' chroma snapshot update \n\r");
-				printf("'a' PaintItBack snapshot update \n\r");
-				printf("'r' reset chroma lookup table\n\r");
-				printf("'f' reset PaintItBack lookup table\n\r");
-				printf("'o' to clear output buffer frame list\n\r");
-				printf("'i' display frame info\n\r");
-				printf("ctl+'l' load settings\n\r");
-				printf("ctl+'s' save settings\n\r");
-
-				for (int x = 0; x < 10; x++)
-					printf("\n\r");
-			//    while (GetAsyncKeyState('H'));
+				printf("\n\n\n\n\n\r");
+				printf("Chroma Software Usage: \n\t[h]\t->\tShows this help message.\n\n");
+				printf("['q']\t->\tchroma snapshot update \n");
+				printf("['a']\t->\tPaintItBack snapshot update \n");
+				printf("['r']\t->\treset chroma lookup table\n");
+				printf("['f']\t->\treset PaintItBack lookup table\n");
+				printf("['o']\t->\tto clear output buffer frame list\n");
+				printf("['i']\t->\tdisplay frame info\n\n");
+				printf("[ctl+'l']\t->\tload settings\n");
+				printf("[ctl+'s']\t->\tsave settings\n");
+				printf("\n\n\n\r");
 			}
 
-
-
-//			if (GetAsyncKeyState('A'))
-//			{
-//				bSmall = true;
-//			}else
-//				bSmall = false;
-			static unsigned int bFrameTimer = 0;
 			bFrameTimer++;
-
 
 			if (GetAsyncKeyState('w'))
 			{
-
 				bTakeOutput = 0;
 				bAutoTrain=true;
 
-			}else
+			}
+			else
 			{
 				bAutoTrain=false;
 			}
@@ -1258,93 +1199,75 @@ int main()
 				SetOnAirLookup(0);
 				iUpdateIndex = 0;
 				UpdateSettingsWindow();
-
 				iLastCheck = 0;
 				bTakeOutput = -1;
 				bDoPaintBack=false;
-			//	if (!GetAsyncKeyState(VK_LCONTROL))
-			//		bSafeSnapshot = true;
 				mtxScreenCard.lock();
 				bTakeMask = true;
-			//	std::cout << "Snap Shot" << std::endl;
-
 				mtxScreenCard.unlock();
+
 				setWindowTitle("RGB Output", "Chroma");
 				setWindowTitle("Settings","Settings Chroma");
-			//	while (GetAsyncKeyState('Q'));
 			}
-
 
 			if (GetAsyncKeyState('a'))
 			{
-
 				SetOnAirLookup(1);
 				iUpdateIndex = 1;
 				UpdateSettingsWindow();
 				iLastCheck = 0;
 				bTakeOutput = -1;
 				bDoPaintBack=true;
-			//	if (!GetAsyncKeyState(VK_LCONTROL))
-			//		bSafeSnapshot = true;
 				mtxScreenCard.lock();
 				bTakeMask = true;
-				//std::cout << "Snap Shot" << std::endl;
 				mtxScreenCard.unlock();
+
 				setWindowTitle("RGB Output", "PaintItBack");
 				setWindowTitle("Settings","PaintItBack");
-			//	while (GetAsyncKeyState('Q'));
 			}
-
 
 			if (GetAsyncKeyState(VK_F1))
 			{
 				bTakeOutput = 0;
-			//	while (GetAsyncKeyState(VK_F1));
 			}
 
 			if (GetAsyncKeyState(VK_F2))
 			{
 				bTakeOutput = 1;
-			//	while (GetAsyncKeyState(VK_F2));
 			}
 
 			if (GetAsyncKeyState(VK_F3))
 			{
 				bTakeOutput = 2;
-		//		while (GetAsyncKeyState(VK_F3));
 			}
 			if (GetAsyncKeyState(VK_F4))
 			{
 				bTakeOutput = 3;
-				//		while (GetAsyncKeyState(VK_F3));
 			}
 			if (GetAsyncKeyState(VK_F5))
 			{
 				bTakeOutput = 4;
-				//		while (GetAsyncKeyState(VK_F3));
 			}
 
 			if (GetAsyncKeyState(VK_F10))
+			{
 				CameraZero();
+			}
 
 			if (GetAsyncKeyState('s'))
 			{
 				std::string FileAndPathName;
 				std::time_t result = std::time(nullptr);
 				std::string  FileName= toString(result);
-				FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName;
+				FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // User relative Paths
 				std::thread t1(SaveImageThread,RGB_saving.clone(),iIndex++,FileAndPathName);
 				t1.join();
 				if(iIndex==4)
+				{
 					iIndex=0;
+				}
+
 			}
-//				iLastCheck = 1;
-//				if (!GetAsyncKeyState(VK_LCONTROL))
-//					bSafeSnapshot = true;
-//
-//			//	while (GetAsyncKeyState('W'));
-//			}
-//		//	Rect2d r = selectROI(im);
 
 			if (myThreadData.bUpdateRGB_Preview)
 			{
