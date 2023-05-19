@@ -6,6 +6,11 @@
  Copyright   : dont know
  Description : CUDA compute reciprocals
  ============================================================================
+
+ This is the programs main entry point.
+
+
+
  */
 
 #include <iostream>
