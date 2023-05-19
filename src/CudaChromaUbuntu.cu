@@ -865,7 +865,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		#endif
 	}
 
-	std::cout <<"Launch_yuyv10PackedToyuyvUnpacked"<<std::endl;
+	std::cout <<"[Launch]: YUYV 10-bit Packed To YUYV Unpacked"<<std::endl;
 	CudaChromaFree();
 	cudaLookUpFree();
 	return 0;
@@ -874,22 +874,10 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 }
 
 
-void ButtonCallback_KeyTopAndBottom(int state, void* userdata)
-{
-
-
-
-
-
-}
-
-
-
-
 void InitSettingsWindows()
 {
+	// TODO: All window names must be stored in strings and passed as variables
 	namedWindow("Settings", WINDOW_NORMAL);
-	//createTrackbar("Blending", "Settings", 0, 877, Blending, 0);
 	createTrackbar("Blending", "Settings", 0, 2000, Blending, 0);
 	createTrackbar("Delay", "Settings", 0, 30, FrameDelay, 0);
 	createTrackbar("Erode", "Settings", 0, 20, Erode, 0);
@@ -901,17 +889,7 @@ void InitSettingsWindows()
 	createTrackbar("E Lum", "Settings", 0, 50, ERASE_LUM_DIAM, 0);
 	createTrackbar("Key Bot", "Settings", 0, 300, LUM_CUT_BOT, 0);
 	createTrackbar("Key Top", "Settings", 0, 300, LUM_CUT_TOP, 0);
-
-//	createTrackbar("AR/VR Cut", "Settings", &iVrArCut, (877),0, 0);
-//	createTrackbar("VR Cut 1", "Settings", &iVrArCut0, (877), 0, 0);
-//	createTrackbar("VR Cut 2", "Settings", &iVrArCut1, (877), 0, 0);
-//	createTrackbar("VR Cut 3", "Settings", &iVrArCut2, (877), 0, 0);
-//	setTrackbarPos("AR/VR Cut", "Settings", 877);
-
-//	createTrackbar("canny L", "Settings", 0, 900, CUNNY_BOT, 0);
-//	createTrackbar("canny T", "Settings", 0, 900, CUNNY_TOP, 0);
 	createTrackbar("NMS", "Settings", 0, 100, NMS, 0);
-	//createButton("Enable Key Top And Bottom,", ButtonCallback_KeyTopAndBottom, 0, QT_CHECKBOX, true);
 }
 
 
@@ -919,7 +897,6 @@ void UpdateSettingsWindow()
 {
 	setTrackbarPos("Blending", "Settings", m_BlendPos);
 	setTrackbarPos("Delay", "Settings", 3);
-
 	setTrackbarPos("UV Diam", "Settings", FourSettings[iUpdateIndex].m_iUV_Diam);
 	setTrackbarPos("Outer Diam", "Settings", FourSettings[iUpdateIndex].m_iOuter_Diam);
 	setTrackbarPos("Lum Depth", "Settings", FourSettings[iUpdateIndex].m_iLum_Diam);
@@ -929,42 +906,25 @@ void UpdateSettingsWindow()
 	setTrackbarPos("Dialate", "Settings", FourSettings[iUpdateIndex].m_iDilate);
 	setTrackbarPos("Key Bot", "Settings", FourSettings[iUpdateIndex].m_iLowerlimit);
 	setTrackbarPos("Key Top", "Settings", FourSettings[iUpdateIndex].m_iUpperlimit);
-	//setTrackbarPos("canny L", "Settings", FourSettings[iUpdateIndex].m_cunnyb);
-	//setTrackbarPos("canny T", "Settings", FourSettings[iUpdateIndex].m_cunnyt);
 	setTrackbarPos("NMS", "Settings", m_fNMS*100);
-
 }
 
 void on_opengl(void* param)
 {
-
 	glViewport(0, 0,  1366.0, 768.0);
-	glMatrixMode(GL_PROJECTION);                        // Select The Projection Matrix
+	glMatrixMode(GL_PROJECTION);                // Select The Projection Matrix
 	glLoadIdentity();                           // Reset The Projection Matrix
-
-	// Calculate The Aspect Ratio Of The Window
-	//	if(m_iWindowX>m_iWindowY)
-	gluOrtho2D(0, 1366.0, 768.0, 0);
-
-	//	gluPerspective(45.0f,(GLfloat)m_iWindowX/(GLfloat)m_iWindowY,0.1f,100.0f);
-
-	glMatrixMode(GL_MODELVIEW);                     // Select The Modelview Matrix
+	gluOrtho2D(0, 1366.0, 768.0, 0);			// Calculate The Aspect Ratio Of The Window
+	glMatrixMode(GL_MODELVIEW);                 // Select The Modelview Matrix
 	glLoadIdentity();                           // Reset The Modelview Matrix
-	/*glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho (0,1920,0,1080,-1, 1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();*/
-	//	glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
 	glEnable(GL_BLEND);
-	glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
+	glShadeModel(GL_SMOOTH);                    // Enable Smooth Shading
 	glClearDepth(1.0f);                         // Depth Buffer Setup
-	glEnable(GL_DEPTH_TEST);                        // Enables Depth Testing
-	glDepthFunc(GL_ALWAYS);                         // The Type Of Depth Testing To Do
+	glEnable(GL_DEPTH_TEST);                    // Enables Depth Testing
+	glDepthFunc(GL_ALWAYS);                     // The Type Of Depth Testing To Do
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective
 	glDisable(GL_LIGHTING);
 	glEnable(GL_MULTISAMPLE_ARB);
-	//	glClear(
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor4f(GLfloat(40.0 / 255.0), GLfloat(40.0 / 255.0), GLfloat(40.0 / 255.0), GLfloat(1.0));
@@ -984,54 +944,19 @@ void on_opengl(void* param)
 	glVertex2f(10, 10);
 	glEnd();
 	glFlush();
-
-//	std::cout<<"Finished Setting the window"<<std::endl;
-
-
-//	 glClear(GL_COLOR_BUFFER_BIT);
-//
-//	  // Draw a white grid "floor" for the tetrahedron to sit on.
-//	  glColor3f(1.0, 1.0, 1.0);
-//	  glBegin(GL_LINES);
-//	  for (GLfloat i = -2.5; i <= 2.5; i += 0.25) {
-//	    glVertex3f(i, 0, 2.5); glVertex3f(i, 0, -2.5);
-//	    glVertex3f(2.5, 0, i); glVertex3f(-2.5, 0, i);
-//	  }
-//	  glEnd();
-//
-//	  // Draw the tetrahedron.  It is a four sided figure, so when defining it
-//	  // with a triangle strip we have to repeat the last two vertices.
-//	  glBegin(GL_TRIANGLE_STRIP);
-//	    glColor3f(1, 1, 1); glVertex3f(0, 2, 0);
-//	    glColor3f(1, 0, 0); glVertex3f(-1, 0, 1);
-//	    glColor3f(0, 1, 0); glVertex3f(1, 0, 1);
-//	    glColor3f(0, 0, 1); glVertex3f(0, 0, -1.4);
-//	    glColor3f(1, 1, 1); glVertex3f(0, 2, 0);
-//	    glColor3f(1, 0, 0); glVertex3f(-1, 0, 1);
-//	  glEnd();
-//
-//	  glFlush();
-
 }
 
 void initOpenCVWindows()
 {
-
 	InitSettingsWindows();
 	UpdateSettingsWindow();
 	std::string rgbOutputWin = "RGB Output";
 	std::string frameInfoWin = "Frame Info";
 
 	namedWindow(rgbOutputWin,  WINDOW_NORMAL);
-	//namedWindow("RGB Output1",  WINDOW_OPENGL);
 	namedWindow(frameInfoWin, WINDOW_NORMAL);
-//	namedWindow("Soccer Frame Info", WINDOW_OPENGL);
 	setMouseCallback(rgbOutputWin, CallThisMouse, 0);
-//	setOpenGlDrawCallback(rgbOutputWin, on_opengl, 0);
 	updateWindow(rgbOutputWin);
-
-//	std::cout<<"I run"<<std::endl;
-
 }
 
 void UpdateTXTFile(char *Buffer)
@@ -1042,66 +967,58 @@ void UpdateTXTFile(char *Buffer)
 
 void UpdateLookupFromMouse()
 {
-
-	if (bTaining || bErase)
+	if (!bTaining && !bErase)
 	{
-	/*	MASK->setTo(0);
+		if (bEnableClick)
+		{
+			if (MouseData1.bHandleLDown)
+			{
+				if (!bSmall)
+				{
+					char buffer[MAX_PATH];
+					sprintf(buffer, "1 %d %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic,FourSettings[iUpdateIndex].m_iUV_Diam);
 
-		if (bTaining)
-			rectangle(*MASK, Rect(Point(MouseData1.iXDown, MouseData1.iYDown), Point(MouseData1.iXUp, MouseData1.iYUp)), Scalar(255), CV_FILLED);
-		if (bErase)
-			rectangle(*MASK, Rect(Point(MouseData1.iXDown, MouseData1.iYDown), Point(MouseData1.iXUp, MouseData1.iYUp)), Scalar(128), CV_FILLED);
+					UpdateTXTFile(buffer);
+					mtxScreenCard.lock();
 
-		return true;*/
-	}
-	else
-	{
+					Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, FourSettings[iUpdateIndex].m_iUV_Diam,
+							FourSettings[iUpdateIndex].m_iLum_Diam, FourSettings[iUpdateIndex].m_iOuter_Diam, 200,bDoPaintBack);
+
+					mtxScreenCard.unlock();
+				}
+				else
+				{
+					char buffer[MAX_PATH];
+					sprintf(buffer, "1 %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic);
+
+					UpdateTXTFile(buffer);
+					mtxScreenCard.lock();
+
+					Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, 1, 10, 5, 200,bDoPaintBack);
+
+					mtxScreenCard.unlock();
+				}
+				return;
+			}
+		}
 
 		if (bEnableClick)
-		if (MouseData1.bHandleLDown)
 		{
-
-			//MASK->setTo(0);
-			//rectangle(*MASK, Rect(Point(MouseData1.iXDownDynamic, MouseData1.iYDownDynamic), Point(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic)), Scalar(255), CV_FILLED);
-
-			if (!bSmall)
+			if (MouseData1.bHandleRDown)
 			{
 				char buffer[MAX_PATH];
-				sprintf(buffer, "1 %d %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic,FourSettings[iUpdateIndex].m_iUV_Diam);
-				UpdateTXTFile(buffer);
-				//std::cout << buffer << std::endl;
-				mtxScreenCard.lock();
-				Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, FourSettings[iUpdateIndex].m_iUV_Diam, FourSettings[iUpdateIndex].m_iLum_Diam, FourSettings[iUpdateIndex].m_iOuter_Diam, 200,bDoPaintBack);
-				mtxScreenCard.unlock();
-
-			}
-			else
-			{
-				char buffer[MAX_PATH];
-				sprintf(buffer, "1 %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic);
+				sprintf(buffer, "0 %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic);
 				UpdateTXTFile(buffer);
 				mtxScreenCard.lock();
-				Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, 1, 10, 5, 200,bDoPaintBack);
+				Launch_UpdateLookupFrom_XY_Posision_Erase(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, FourSettings[iUpdateIndex].m_iErase_Diam, FourSettings[iUpdateIndex].m_iErase_Lum_Diam,bDoPaintBack);
 				mtxScreenCard.unlock();
 			}
-			return;
-		}
-		if (bEnableClick)
-		if (MouseData1.bHandleRDown)
-		{
-			char buffer[MAX_PATH];
-			sprintf(buffer, "0 %d %d %d %d\n", MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic);
-			UpdateTXTFile(buffer);
-			mtxScreenCard.lock();
-			Launch_UpdateLookupFrom_XY_Posision_Erase(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, FourSettings[iUpdateIndex].m_iErase_Diam, FourSettings[iUpdateIndex].m_iErase_Lum_Diam,bDoPaintBack);
-			mtxScreenCard.unlock();
-		//	return;
 		}
 	}
-
-
-
-
 }
 
 #define VK_LCONTROL 0
@@ -1113,13 +1030,10 @@ void UpdateLookupFromMouse()
 
 #define VK_F10 199
 int iKey;
+
 void UpdateKeyState()
 {
 	iKey=waitKey(10);
-//	while(waitKey(1)!=-1);
-//	if(iKey!=-1)
-	//	std::cout << iKey << std ::  endl;
-//	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 
@@ -1127,45 +1041,30 @@ bool GetAsyncKeyState(int checkpressed)
 {
 	if(checkpressed==iKey)
 	{
-
 		iKey=-1;
 		return true;
 	}
 	else
+	{
 		return false;
-
-	return false;
+	}
 }
 
 
 void DrawMouseText(Mat *DrawingMat,string text,cv::Point r)
 {
-
-
 	char buffer[MAX_PATH];
 	sprintf(buffer, "%d %d\n", MouseData1.x,MouseData1.y);
-
-
 	Mat img=*DrawingMat;
-
 	int fontFace = FONT_HERSHEY_PLAIN;
 	double fontScale =1.0;
 	int thickness = 1;
-
 	int baseline=0;
-//	Size textSize = getTextSize(text, fontFace,
-//								fontScale, thickness, &baseline);
-//	baseline += thickness;
-	// center the text
+
 	Point textOrg(r.x,r.y);
-
-
 	putText(img, buffer, textOrg, fontFace, fontScale,
 			Scalar::all(255), thickness, 8);
 }
-
-
-
 
 
 int main()
