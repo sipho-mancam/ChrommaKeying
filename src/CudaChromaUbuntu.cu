@@ -543,6 +543,7 @@ int fpsLimit = 1;  // FPS limit for sampling
 unsigned int frameCount = 0;
 const char *sSDKsample = "RGB Output";
 
+
 struct ThreadData
 {
 	ThreadData()
@@ -634,30 +635,30 @@ bool bAutoTrain=false;
 void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-ai-can-automatically-remove-the-background-from-a-photo/
 {
 
-#ifdef PREVIEW_OUTPUTRENDER
-	initOpenCVWindows();
-	namedWindow("y_only",WINDOW_OPENGL);
-	namedWindow("u_only",WINDOW_OPENGL);
-	namedWindow("v_only",WINDOW_OPENGL);
-	namedWindow("mask Erode dilate GaussianFilter",WINDOW_OPENGL);
-	namedWindow("UI Mouse training Window",WINDOW_OPENGL);
-	namedWindow("Yolo generated mask",WINDOW_OPENGL);
-	namedWindow("Yolo generated mask HistoGram",WINDOW_OPENGL);
-	namedWindow("Yolomask",WINDOW_OPENGL);
+	#ifdef PREVIEW_OUTPUTRENDER
+		initOpenCVWindows();
+		namedWindow("y_only",WINDOW_OPENGL);
+		namedWindow("u_only",WINDOW_OPENGL);
+		namedWindow("v_only",WINDOW_OPENGL);
+		namedWindow("mask Erode dilate GaussianFilter",WINDOW_OPENGL);
+		namedWindow("UI Mouse training Window",WINDOW_OPENGL);
+		namedWindow("Yolo generated mask",WINDOW_OPENGL);
+		namedWindow("Yolo generated mask HistoGram",WINDOW_OPENGL);
+		namedWindow("Yolomask",WINDOW_OPENGL);
 
 
 
-	int yspace = 1;
-	int xspace = 380;
-	int index = 0 ;
-	moveWindow("y_only",0,0);
-	moveWindow("mask Erode dilate GaussianFilter",0*xspace,0*yspace);
-	moveWindow("UI Mouse training Window",1*xspace,1*yspace);
-	moveWindow("Yolo generated mask",2*xspace,2*yspace);
-	moveWindow("u_only",3*xspace,3*yspace);
-	moveWindow("v_only",4*xspace,4*yspace);
+		int yspace = 1;
+		int xspace = 380;
+		int index = 0 ;
+		moveWindow("y_only",0,0);
+		moveWindow("mask Erode dilate GaussianFilter",0*xspace,0*yspace);
+		moveWindow("UI Mouse training Window",1*xspace,1*yspace);
+		moveWindow("Yolo generated mask",2*xspace,2*yspace);
+		moveWindow("u_only",3*xspace,3*yspace);
+		moveWindow("v_only",4*xspace,4*yspace);
 
-#endif
+	#endif
 //
 	bool bPopFront=false;
 	unsigned int iDelayFramesStore=1;
@@ -671,6 +672,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 	unsigned int Max_duration=0;
 	VideoIn decklink_video_in;
+
 	while (decklink_video_in.m_sizeOfFrame== -1)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
@@ -683,20 +685,6 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	FourSettings[1].m_ParabolicFunc = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
 	FourSettings[2].m_ParabolicFunc = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
 
-
-//	while (!bExitWorkerThread)
-//			{
-//
-//					//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//					decklink_video_in.WaitForFrames();
-//					void * ptr_BG_Video = decklink_video_in.imagelistVideo.GetFrame(true);
-//					void * ptr__FILL_Video = decklink_video_in.imagelistFill.GetFrame(true);
-//					void * ptr__KEY_Video = decklink_video_in.imagelistKey.GetFrame(true);
-//					free(ptr_BG_Video);
-//					free(ptr__FILL_Video);
-//					free(ptr__KEY_Video);
-//			}
-
 	decklink_video_in.WaitForFrames(1);
 	decklink_video_in.imagelistVideo.ClearAll(0);
 	decklink_video_in.imagelistFill.ClearAll(0);
@@ -704,14 +692,11 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	decklink_video_in.ImagelistOutput.ClearAll(1);
 
 
-		while (!bExitWorkerThread)
-		{
+	while (!bExitWorkerThread)
+	{
 
-
-
-
-		//	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			auto timer_wait_start = std::chrono::system_clock::now();
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		auto timer_wait_start = std::chrono::system_clock::now();
 		if((iDelayFramesStore!=iDelayFrames)||bClearOutPut)
 		{
 			bClearOutPut=false;
@@ -721,44 +706,87 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 			decklink_video_in.imagelistVideo.ClearAll(0);
 			decklink_video_in.imagelistFill.ClearAll(0);
 			decklink_video_in.imagelistKey.ClearAll(0);
-		}else
+		}
+		else
+		{
 			decklink_video_in.WaitForFrames(iDelayFrames);
-			auto timer_start = std::chrono::system_clock::now();
-			avg=0.0;
-			for(int x=0;x<AVG_CALC;x++)
-				avg=avg+avg_duration[x];
-			avg=avg/AVG_CALC;
-			snprintf(OutputRenderthreadStatus,sizeof(OutputRenderthreadStatus),"avg:%f,Genlocked:%s Video:%d Key:%d Fill:%d Delay:%d Output:%d \r",avg, bGenGenlockStatus() ? "Yes" : "No",(int) decklink_video_in.imagelistVideo.GetFrameCount(),  (int)(int) decklink_video_in.imagelistKey.GetFrameCount(), (int)(int) decklink_video_in.imagelistFill.GetFrameCount(), iDelayFrames, (int)(int) decklink_video_in.ImagelistOutput.GetFrameCount());
-			framecounter++;
-			unsigned int iBufferCount=decklink_video_in.imagelistVideo.GetFrameCount() ;
-			if(iDelayFrames<iBufferCount)
-			{
-				bPopFront=true;
-			}
-			else
-			{
-				bPopFront=false;
-			}
-			void * ptr_BG_Video = decklink_video_in.imagelistVideo.GetFrame(bPopFront);
-			void * ptr__FILL_Video = decklink_video_in.imagelistFill.GetFrame(true);
-			void * ptr__KEY_Video = decklink_video_in.imagelistKey.GetFrame(true);
-			mtxScreenCard.lock();
+		}
 
-			CudaSetInputData(ptr_BG_Video,ptr__FILL_Video,ptr__KEY_Video,false);
-			auto  timer_start_CudaSetInputData = std::chrono::system_clock::now();
-			if(bPopFront)
-				free(ptr_BG_Video);
-			free(ptr__FILL_Video);
-			free(ptr__KEY_Video);
+		auto timer_start = std::chrono::system_clock::now();
 
-#ifdef PREVIEW_OUTPUTRENDER
-			Launch_yuyv10PackedToyuyvUnpacked(decklink_video_in.m_RowLength,bTakeMask,decklink_video_in.m_iFrameSizeUnpacked,ptrThreadData->RGB_Output_Cuda,FourSettings[0].m_cunnyb,FourSettings[0].m_cunnyt,true);
-#else
-			Launch_yuyv10PackedToyuyvUnpacked(decklink_video_in.m_RowLength,bTakeMask,decklink_video_in.m_iFrameSizeUnpacked,ptrThreadData->RGB_Output_Cuda,FourSettings[0].m_cunnyb,FourSettings[0].m_cunnyt,bAutoTrain);
-			#endif
-			auto timer_Launch_yuyv10PackedToyuyvUnpacked = std::chrono::system_clock::now();
+		avg=0.0;
 
+		for(int x=0; x<AVG_CALC; x++)
+		{
+			avg=avg+avg_duration[x];
+		}
 
+		avg=avg/AVG_CALC;
+
+		snprintf(
+					OutputRenderthreadStatus,
+					sizeof(OutputRenderthreadStatus),
+					"avg:%f,Genlocked:%s Video:%d Key:%d Fill:%d Delay:%d Output:%d \r",
+					avg, bGenGenlockStatus() ? "Yes" : "No",
+					(int) decklink_video_in.imagelistVideo.GetFrameCount(),
+					(int)(int) decklink_video_in.imagelistKey.GetFrameCount(),
+					(int)(int) decklink_video_in.imagelistFill.GetFrameCount(),
+					iDelayFrames,
+					(int)(int) decklink_video_in.ImagelistOutput.GetFrameCount()
+				);
+
+		framecounter++;
+
+		unsigned int iBufferCount=decklink_video_in.imagelistVideo.GetFrameCount();
+
+		if(iDelayFrames<iBufferCount)
+		{
+			bPopFront=true;
+		}
+		else
+		{
+			bPopFront=false;
+		}
+
+		void * ptr_BG_Video = decklink_video_in.imagelistVideo.GetFrame(bPopFront);
+		void * ptr__FILL_Video = decklink_video_in.imagelistFill.GetFrame(true);
+		void * ptr__KEY_Video = decklink_video_in.imagelistKey.GetFrame(true);
+		mtxScreenCard.lock();
+
+		CudaSetInputData(ptr_BG_Video,ptr__FILL_Video,ptr__KEY_Video,false);
+		auto  timer_start_CudaSetInputData = std::chrono::system_clock::now();
+
+		if(bPopFront)
+		{
+			free(ptr_BG_Video);
+		}
+
+		free(ptr__FILL_Video);
+		free(ptr__KEY_Video);
+
+		#ifdef PREVIEW_OUTPUTRENDER
+
+			Launch_yuyv10PackedToyuyvUnpacked(
+					decklink_video_in.m_RowLength,
+					bTakeMask,
+					decklink_video_in.m_iFrameSizeUnpacked,
+					ptrThreadData->RGB_Output_Cuda,
+					FourSettings[0].m_cunnyb,
+					FourSettings[0].m_cunnyt,
+					true
+					);
+		#else
+			Launch_yuyv10PackedToyuyvUnpacked(
+					decklink_video_in.m_RowLength,
+					bTakeMask,
+					decklink_video_in.m_iFrameSizeUnpacked,
+					ptrThreadData->RGB_Output_Cuda,
+					FourSettings[0].m_cunnyb,
+					FourSettings[0].m_cunnyt,
+					bAutoTrain
+					);
+		#endif
+		auto timer_Launch_yuyv10PackedToyuyvUnpacked = std::chrono::system_clock::now();
 
 		//auto startyolo = std::chrono::system_clock::now();
 		if(bTakeOutput==-1)
@@ -780,64 +808,67 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 			Launch_yuyv_Unpacked_GenerateMask(0, 0,bAutoTrain);//
 			Launch_yuyvDilateAndErode(FourSettings[0].m_iErode, FourSettings[0].m_iDilate, 0);
 			Launch_yuyv_Unpacked_GenerateMask_yolo_seg(0, 1,bAutoTrain,GetSegmentedMask());//
-			//Launch_yuyvDilateAndErode(FourSettings[1].m_iErode, FourSettings[1].m_iDilate, 1);
-
 		#endif
 
 		auto timer_Launch_yuyvDilateAndErode_Launch_yuyv_Unpacked_GenerateMask_yolo = std::chrono::system_clock::now();
+
 		Launch_yuyv_Unpacked_UnpackedComBineData(&m_BlendPos, &m_BlendPos, &m_BlendPos, decklink_video_in.m_RowLength, &FourSettings[0].m_ParabolicFunc, &FourSettings[1].m_ParabolicFunc, &FourSettings[2].m_ParabolicFunc,bBypass, iVrArCut+ 64, iVrArCut0+64, iVrArCut1 + 64, iVrArCut2 + 64, bTakeOutput);
+
 		auto timer_Launch_yuyv_Unpacked_UnpackedComBineData = std::chrono::system_clock::now();
+
 		if (bTakeOutput!=-1)
 		{
 			ptrThreadData->bUpdateRGB_Preview = true;
-			//bTakeOutput = -1;
 		}
-
 
 		void *yuvdata = malloc(decklink_video_in.m_sizeOfFrame);
 		CudaGetOutputData(yuvdata);
 		decklink_video_in.ImagelistOutput.AddFrame(yuvdata);
+
 		auto timer_end = std::chrono::system_clock::now();
 		mtxScreenCard.unlock();
-		auto duration_now=std::chrono::duration_cast<std::chrono::milliseconds>(timer_end - timer_start).count();
-	//	auto duration_now=std::chrono::duration_cast<std::chrono::milliseconds>(timer_end - timer_start).count();
-		auto duration_yolo=std::chrono::duration_cast<std::chrono::milliseconds>(timer_endyolo - timer_Launch_yuyv10PackedToyuyvUnpacked).count();
 
+		auto duration_now = std::chrono::duration_cast<std::chrono::milliseconds>(timer_end - timer_start).count();
+		auto duration_yolo = std::chrono::duration_cast<std::chrono::milliseconds>(timer_endyolo - timer_Launch_yuyv10PackedToyuyvUnpacked).count();
 		auto timer_start_wait_duration=std::chrono::duration_cast<std::chrono::milliseconds>(timer_start-timer_wait_start ).count();//
+
 		avg_duration[iAvgIndex++]=duration_now;
-		if(iAvgIndex==AVG_CALC)
-			iAvgIndex=0;
-		if(Max_duration<duration_now)
-			Max_duration=duration_now;
-
-#ifdef DISPLAY_I_TIMINGS
-		if((framecounter==10))
+		if(iAvgIndex == AVG_CALC)
 		{
-			auto duration_CudaSetInputData				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_start-timer_start_CudaSetInputData).count();
-			auto duration_yuyv10PackedToyuyvUnpacked	=std::chrono::duration_cast<std::chrono::microseconds>(timer_start_CudaSetInputData-timer_Launch_yuyv10PackedToyuyvUnpacked).count();
-			auto duration_PrepareYoloData				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_Launch_yuyv10PackedToyuyvUnpacked-timer_endyolo).count();
-			auto duration_generatemask_erode_dilate		=std::chrono::duration_cast<std::chrono::milliseconds>(timer_endyolo-timer_Launch_yuyvDilateAndErode_Launch_yuyv_Unpacked_GenerateMask_yolo).count();
-			auto duration_add_to_decklink				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_Launch_yuyv_Unpacked_UnpackedComBineData-timer_end).count();
-			std::cout <<"duration_CudaSetInputData"<<duration_CudaSetInputData<< "ms  "<<std::endl;
-			std::cout <<"duration_yuyv10PackedToyuyvUnpacked"<<duration_yuyv10PackedToyuyvUnpacked<< "us  "<<std::endl;
-			std::cout <<"duration_PrepareYoloData"<<duration_PrepareYoloData<< "ms  "<<std::endl;
-			std::cout <<"duration_generatemask_erode_dilate"<<duration_generatemask_erode_dilate<< "ms  "<<std::endl;
-			std::cout <<"duration_add_to_decklink"<<duration_add_to_decklink<< "ms  "<<std::endl;
-
-
-			framecounter=0;
-			std::cout <<"Max:"<<Max_duration<< "ms Now:"<< duration_now << "ms  " <<std::endl;
-			Max_duration=0;
-
+			iAvgIndex=0;
 		}
-#endif
 
-
+		if(Max_duration<duration_now)
+		{
+			Max_duration=duration_now;
 		}
-		std::cout <<"Launch_yuyv10PackedToyuyvUnpacked"<<std::endl;
-		CudaChromaFree();
-		cudaLookUpFree();
-		return 0;
+
+
+		#ifdef DISPLAY_I_TIMINGS
+				if((framecounter==10))
+				{
+					auto duration_CudaSetInputData				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_start-timer_start_CudaSetInputData).count();
+					auto duration_yuyv10PackedToyuyvUnpacked	=std::chrono::duration_cast<std::chrono::microseconds>(timer_start_CudaSetInputData-timer_Launch_yuyv10PackedToyuyvUnpacked).count();
+					auto duration_PrepareYoloData				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_Launch_yuyv10PackedToyuyvUnpacked-timer_endyolo).count();
+					auto duration_generatemask_erode_dilate		=std::chrono::duration_cast<std::chrono::milliseconds>(timer_endyolo-timer_Launch_yuyvDilateAndErode_Launch_yuyv_Unpacked_GenerateMask_yolo).count();
+					auto duration_add_to_decklink				=std::chrono::duration_cast<std::chrono::milliseconds>(timer_Launch_yuyv_Unpacked_UnpackedComBineData-timer_end).count();
+					std::cout <<"duration_CudaSetInputData"<<duration_CudaSetInputData<< "ms  "<<std::endl;
+					std::cout <<"duration_yuyv10PackedToyuyvUnpacked"<<duration_yuyv10PackedToyuyvUnpacked<< "us  "<<std::endl;
+					std::cout <<"duration_PrepareYoloData"<<duration_PrepareYoloData<< "ms  "<<std::endl;
+					std::cout <<"duration_generatemask_erode_dilate"<<duration_generatemask_erode_dilate<< "ms  "<<std::endl;
+					std::cout <<"duration_add_to_decklink"<<duration_add_to_decklink<< "ms  "<<std::endl;
+
+					framecounter=0;
+					std::cout <<"Max:"<<Max_duration<< "ms Now:"<< duration_now << "ms  " <<std::endl;
+					Max_duration=0;
+				}
+		#endif
+	}
+
+	std::cout <<"Launch_yuyv10PackedToyuyvUnpacked"<<std::endl;
+	CudaChromaFree();
+	cudaLookUpFree();
+	return 0;
 
 
 }
