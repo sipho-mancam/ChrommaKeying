@@ -1272,14 +1272,12 @@ int main()
 			if (myThreadData.bUpdateRGB_Preview)
 			{
 				myThreadData.bUpdateRGB_Preview = false;
-			//	std::cout << "waiting" << std::endl;
 				mtxScreenCard.lock();
-
 
 				RGB_Output_Cuda.download(RGB_Output);
 				RGB_saving=RGB_Output.clone();
 				iFrameIndex++;
-			//	std::cout << iFrameIndex << std::endl;
+
 				if(0)
 				if(iFrameIndex==50)
 				{
@@ -1287,45 +1285,49 @@ int main()
 					std::string FileAndPathName;
 					std::time_t result = std::time(nullptr);
 					std::string  FileName= toString(result);
-					FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName;
+					FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
+
 					std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
 					t1.join();
 					if(iIndex==4)
+					{
 						iIndex=0;
+					}
 				}
-				DrawSnapShotDetections_clean(&RGB_Output,bTrackReset);
-				//imwrite("/home/jurie/Documents/textures/from_camera.bmp",RGB_Output);
-				//RGB_Output.cols=1920*2;
-				//RGB_Output.rows=1080/2;
 
-			//	DrawSnapShotDetectionsPTR(&RGB_Output,bTrackReset);
+				DrawSnapShotDetections_clean(&RGB_Output,bTrackReset);
+
 				if(bCapture)
+				{
 					writeframe(RGB_Output.clone());
+				}
+
 				bTrackReset=false;
 				DrawCameraData(&RGB_Output);
-				//RGB_Output.cols=1920;
-				//RGB_Output.rows=1080;
-				//writeframe(RGB_Output);
 				bstart = true;
-			//	bTakeOutput = 0;
-
-			//	bTakeMask = true;
 				mtxScreenCard.unlock();
 			}
 			if (bstart)
 			{
 				RGB__Draw = RGB_Output.clone();
-				cv::Rect myROI(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic, MouseData1.iXDownDynamic - MouseData1.iXUpDynamic, MouseData1.iYDownDynamic - MouseData1.iYUpDynamic);
+				cv::Rect myROI(
+							MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+							MouseData1.iXDownDynamic - MouseData1.iXUpDynamic,
+							MouseData1.iYDownDynamic - MouseData1.iYUpDynamic
+							);
 				if((0 <= myROI.x && 0 <= myROI.width && myROI.x + myROI.width <= RGB__Draw.cols &&
-					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows))
-				{
+					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows)){
+
 					MouseMutex.lock();
 					Mat RGB__Draw_Small = RGB__Draw(myROI);
 					Mat RGB__Draw_SmallEnlarge;
 					Size ssize = RGB__Draw_Small.size();
 					if (!ssize.empty())
 					{
-						cv::resize(RGB__Draw_Small, RGB__Draw_SmallEnlarge, Size((MouseData1.iXDownDynamic - MouseData1.iXUpDynamic) * 25, (MouseData1.iYDownDynamic - MouseData1.iYUpDynamic) * 25), 0, 0, INTER_NEAREST);
+						cv::resize(RGB__Draw_Small, RGB__Draw_SmallEnlarge,
+								Size((MouseData1.iXDownDynamic - MouseData1.iXUpDynamic) * 25,
+								(MouseData1.iYDownDynamic - MouseData1.iYUpDynamic) * 25), 0, 0, INTER_NEAREST);
+
 						RGB__Draw_SmallEnlarge.copyTo(RGB__Draw.rowRange(0, RGB__Draw_SmallEnlarge.rows).colRange(0, RGB__Draw_SmallEnlarge.cols));
 					}
 					MouseMutex.unlock();
@@ -1337,11 +1339,7 @@ int main()
 				}
 
 				rectangle(RGB__Draw, Point(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic), Point(MouseData1.iXDownDynamic, MouseData1.iYDownDynamic), Scalar(255, 255, 255), 1, 8, 0);
-				circle(RGB__Draw,Point(MouseData1.x,MouseData1.y),20,Scalar(255,255,255),3);
-			//	RGB__Draw.cols=1920*2;
-			//	RGB__Draw.rows=1080/2;
-
-
+				circle(RGB__Draw,Point(MouseData1.x,MouseData1.y),20,Scalar(255,255,255),3);\
 				DrawMouseText(&RGB__Draw,"Hello World",cv::Point(50,50));
 				DrawOutputThreadData(&RGB__Draw);
 				imshow("RGB Output", RGB__Draw);
@@ -1349,74 +1347,61 @@ int main()
 			}
 
 			if(0)
-			if ((bFrameTimer%20)==0)
 			{
-				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-				imshow("Frame Info", RGB_FrameInfo_Cuda);
-			}
-
-			if (GetAsyncKeyState('i'))
-			{
-				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-				imshow("Frame Info", RGB_FrameInfo_Cuda);
-			//	while (GetAsyncKeyState('I'));
-			}
-
-			UpdateLookupFromMouse();
-			UpdateKeyState();
-
-
-//			if (iKey == 49)
-//			{
-//				bTakeOutput = 1;
-//
-//
-//			}
-			if (GetAsyncKeyState(27))//"Esc"
-			{
-				// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
-//				delete RGB__Draw.data;
-				bExitWorkerThread = true;
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				EndLoop();
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				std::cout << "Exit" << std::endl;
-				break;
-//				bExite = true;
-//				printf("Press 'Y' to exit or 'n' to cancel\n\r");
-//				iExitCount = 0;
-			}
-			if (bExite)
-			{
-				iExitCount++;
-			//	printf("%d\n\r", iExitCount);
-				if (iExitCount == 100)
+				if ((bFrameTimer%20)==0)
 				{
-					bExite = false;
-					printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
+					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+					imshow("Frame Info", RGB_FrameInfo_Cuda);
 				}
-			}
 
-			if (GetAsyncKeyState('y'))
+				if (GetAsyncKeyState('i'))
+				{
+					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+					imshow("Frame Info", RGB_FrameInfo_Cuda);
+				}
+
+				UpdateLookupFromMouse();
+				UpdateKeyState();
+
+				if (GetAsyncKeyState(27))//"Esc"
+				{
+					// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
+					bExitWorkerThread = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					EndLoop();
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					std::cout << "Exit" << std::endl;
+					break;
+				}
 				if (bExite)
 				{
-					//ExitMonitor();
-					bExitWorkerThread = true;
-
-					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-					break;
-
+					iExitCount++;
+					if (iExitCount == 100)
+					{
+						bExite = false;
+						printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
+					}
 				}
 
-			if (GetAsyncKeyState('n'))
-				//if (bExite)
-					bExite = false;
-		};
+				if (GetAsyncKeyState('y'))
+				{
+					if (bExite)
+					{
+						bExitWorkerThread = true;
+						std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+						break;
+					}
 
+					if (GetAsyncKeyState('n'))
+					{
+						bExite = false;
+					}
+				}
 
-	}/*else
-	ReadFileFast(true);*/
-//	cudaProfilerStop();
+			}
+		}
+	}
+
 	cudaError_t cudaStatus;
 	 ExitMonitor();
 
@@ -1424,17 +1409,10 @@ int main()
 	// tracing tools such as Nsight and Visual Profiler to show complete traces.
 	std::cout << "End Cuda" << std::endl;
 	cudaStatus = cudaDeviceReset();
-	if (cudaStatus != cudaSuccess) {
+	if (cudaStatus != cudaSuccess)
+	{
 		fprintf(stderr, "cudaDeviceReset failed!");
 		return 1;
 	}
-
-
 	return 0;
 }
-
-// Helper function for using CUDA to add vectors in parallel.
-
-
-
-
