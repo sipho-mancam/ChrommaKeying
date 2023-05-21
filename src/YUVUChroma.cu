@@ -1,5 +1,5 @@
 ﻿#include "YUVUChroma.cuh"
-using namespace std;
+
 #include <thread>         // std::thread
 #include "npp.h"
 #include "yololayer.h"
@@ -17,6 +17,8 @@ using namespace std;
 #include <opencv2/cudaoptflow.hpp>
 #include "PosisionUpdateUDP.h"
 //#define PREVIEW_OUTPUTRENDER
+
+using namespace std;
 
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
 #define SIZE_ULONG4_CUDA 16

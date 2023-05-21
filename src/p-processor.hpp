@@ -3,10 +3,13 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <iostream>
-#include <DeckLinkAPI.h>
+#include <InputLoopThrough.h>
 #include <thread>
+#include <cuda_runtime.h>
 
 #define MAX_LOOK_UP 3
+#define CUDA_LOOKUP_SIZE 1073741824  // 134217728 1024*1024*1024
+#define SIZE_ULONG4_CUDA 16
 
 class PipeLineObj{
 private:
@@ -28,6 +31,9 @@ private:
 	long int frameSizeUnpacked;
 	int iWidth;
 	int iHeight;
+	int iDelayFrames;
+	cudaError_t cudaStatus;
+	cudaStream_t stream;
 
 	uchar2 *yPackedCudaVideo, *yPackedCudaFill, *yPackedCudaKey;
 	uchar2* yUnpackedCudaVideo, *yUnpackedCudaFill, *yUnpackedCudaKey;
@@ -46,6 +52,7 @@ public:
 		this->frameSizeUnpacked = this->deckLinkInput.m_iFrameSizeUnpacked;
 		this->iWidth = this->deckLinkInput.m_iWidth;
 		this->iHeight = this->deckLinkInput.m_iHeight;
+		this->iDelayFrames = 1;
 
 		this->yPackedCudaFill = nullptr;
 		this->yPackedCudaKey = nullptr;
@@ -55,14 +62,14 @@ public:
 		this->yUnpackedCudaKey = nullptr;
 		this->yUnpackedCudaVideo = nullptr;
 
+		this->cudaInit();
 
 	}
 
 	void cudaInit(); // Initialize all the cuda memory (Allocate and Set if necessary)
-
-
-
-
+	bool toCuda(void* src, void* dst, long int size);
+	void sendDataTo(); // send packed key and fill to cuda.
+	void unpackYUV(); // launch kernels to unpack yuv data and place in buffers above
 
 
 

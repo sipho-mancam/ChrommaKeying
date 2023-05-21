@@ -44,7 +44,7 @@
 #include <thread>         // std::this_thread::sleep_for
 #include <chrono>         // std::chrono::seconds
 #include <cuda.h>
-#include <iprocessor.hpp>
+#include <p-processor.hpp>
 #include <math.h>
 #include <X11/Xlib.h>
 #include "YUVUChroma.cuh"
@@ -609,6 +609,9 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 	unsigned int Max_duration=0;
 	VideoIn decklink_video_in; // Input video
+
+	Processor p;
+//	p.sendDataTo();
 
 	while (decklink_video_in.m_sizeOfFrame== -1)
 	{
