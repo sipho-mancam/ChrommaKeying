@@ -44,6 +44,7 @@
 #include <thread>         // std::this_thread::sleep_for
 #include <chrono>         // std::chrono::seconds
 #include <cuda.h>
+#include <iprocessor.hpp>
 #include <math.h>
 #include <X11/Xlib.h>
 #include "YUVUChroma.cuh"
@@ -582,7 +583,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		namedWindow("Yolo generated mask HistoGram",WINDOW_OPENGL);
 		namedWindow("Yolomask",WINDOW_OPENGL);
 
-
+//		std::cout<<"I run here"<<std::endl;
 
 		int yspace = 1;
 		int xspace = 380;
@@ -607,7 +608,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	InitYolov5();
 
 	unsigned int Max_duration=0;
-	VideoIn decklink_video_in;
+	VideoIn decklink_video_in; // Input video
 
 	while (decklink_video_in.m_sizeOfFrame== -1)
 	{
@@ -663,7 +664,8 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 					OutputRenderthreadStatus,
 					sizeof(OutputRenderthreadStatus),
 					"avg:%f,Genlocked:%s Video:%d Key:%d Fill:%d Delay:%d Output:%d \r",
-					avg, bGenGenlockStatus() ? "Yes" : "No",
+					avg,
+					bGenGenlockStatus() ? "Yes" : "No",
 					(int) decklink_video_in.imagelistVideo.GetFrameCount(),
 					(int)(int) decklink_video_in.imagelistKey.GetFrameCount(),
 					(int)(int) decklink_video_in.imagelistFill.GetFrameCount(),
@@ -673,15 +675,15 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 		framecounter++;
 
-		unsigned int iBufferCount=decklink_video_in.imagelistVideo.GetFrameCount();
+		unsigned int iBufferCount = decklink_video_in.imagelistVideo.GetFrameCount();
 
-		if(iDelayFrames<iBufferCount)
+		if(iDelayFrames < iBufferCount)
 		{
-			bPopFront=true;
+			bPopFront = true;
 		}
 		else
 		{
-			bPopFront=false;
+			bPopFront = false;
 		}
 
 		void * ptr_BG_Video = decklink_video_in.imagelistVideo.GetFrame(bPopFront);
@@ -689,7 +691,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		void * ptr__KEY_Video = decklink_video_in.imagelistKey.GetFrame(true);
 		mtxScreenCard.lock();
 
-		CudaSetInputData(ptr_BG_Video,ptr__FILL_Video,ptr__KEY_Video,false);
+		CudaSetInputData(ptr_BG_Video, ptr__FILL_Video, ptr__KEY_Video, false);
 		auto  timer_start_CudaSetInputData = std::chrono::system_clock::now();
 
 		if(bPopFront)
@@ -734,7 +736,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		if (bTakeMask)
 		{
 			bTakeMask = false;
-			ptrThreadData->bUpdateRGB_Preview = true;
+			ptrThreadData->bUpdateRGB_Preview = true; // update output window
 		}
 
 		#ifdef PREVIEW_OUTPUTRENDER
@@ -759,6 +761,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 		void *yuvdata = malloc(decklink_video_in.m_sizeOfFrame);
 		CudaGetOutputData(yuvdata);
+		// This is where we send output to the output channel of decklink
 		decklink_video_in.ImagelistOutput.AddFrame(yuvdata);
 
 		auto timer_end = std::chrono::system_clock::now();
@@ -1019,8 +1022,8 @@ int main()
 		#endif
 
 		cuda::GpuMat RGB_Output_Cuda;
-		RGB_Output_Cuda.create(1080, 1920, CV_8UC3);
-		RGB_Output_Cuda.step = 5760;
+		RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
+		RGB_Output_Cuda.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
 
 		cuda::GpuMat RGB_FrameInfo_Cuda;
 		RGB_FrameInfo_Cuda.create(1024, 1024, CV_8UC3);
@@ -1031,16 +1034,17 @@ int main()
 		RGB_FrameInfo_Cuda_FullUpdate.step = 1024 * 3;
 
 		myThreadData.RGB_Output_Cuda = &RGB_Output_Cuda;
-		Mat		MASK_L(1080, 1920, CV_8UC1, Scalar(0));
+		Mat MASK_L(1080, 1920, CV_8UC1, Scalar(0));
 		myThreadData.MouseData1 = &MouseData1;
 
 		pthread_t threads;
 		int rc;
+		// send output renderer to a separate thread
 		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
 
 		if (rc)
 		{
-			cout << "[Error]: Unable to create thread! : " << rc << endl;
+			cout << "[Error]: Unable to create Output Renderer thread! : " << rc << endl;
 			exit(-1);
 		}
 
@@ -1206,7 +1210,7 @@ int main()
 
 			}
 
-			if (myThreadData.bUpdateRGB_Preview)
+			if (myThreadData.bUpdateRGB_Preview)// this is updated in the outputRenderer Thread
 			{
 				myThreadData.bUpdateRGB_Preview = false;
 				mtxScreenCard.lock();
@@ -1221,7 +1225,7 @@ int main()
 					iFrameIndex=0;
 					std::string FileAndPathName;
 					std::time_t result = std::time(nullptr);
-					std::string  FileName= toString(result);
+					std::string  FileName = toString(result);
 					FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
 
 					std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
@@ -1236,7 +1240,7 @@ int main()
 
 				if(bCapture)
 				{
-					writeframe(RGB_Output.clone());
+					writeframe(RGB_Output.clone()); // save frame
 				}
 
 				bTrackReset=false;
@@ -1284,12 +1288,14 @@ int main()
 			}
 
 			if(0)
-			if ((bFrameTimer%20)==0)
 			{
-				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-				Mat prev;
-				RGB_FrameInfo_Cuda.download(prev);
-				imshow("Frame Info", prev);
+				if ((bFrameTimer%20)==0)
+				{
+					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+					Mat prev;
+					RGB_FrameInfo_Cuda.download(prev);
+					imshow("Frame Info", prev);
+				}
 			}
 
 			if (GetAsyncKeyState('i'))

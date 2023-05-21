@@ -435,9 +435,13 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 		return false;
 	}
 
-
-
 	cudaStatus = cudaMalloc((void**)&YUV_Upload_Fill, iFrameSizeYUV10Bit);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		return false;
+	}
+
+	cudaStatus = cudaMalloc((void**)&V_Unpacked_Video, 960*1080*sizeof(uint16_t));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMalloc failed!");
 		return false;
@@ -465,11 +469,7 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 				}
 
 
-				cudaStatus = cudaMalloc((void**)&V_Unpacked_Video, 960*1080*sizeof(uint16_t));
-						if (cudaStatus != cudaSuccess) {
-							fprintf(stderr, "cudaMalloc failed!");
-							return false;
-						}
+
 
 
 
@@ -526,13 +526,6 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 		fprintf(stderr, "cudaMalloc failed!");
 		return false;
 	}
-
-	//
-	//
-
-
-
-
 
 	cudaStatus = cudaMalloc((void**)&YUV_Unpacked_Key, iFrameSizeUnpacked);
 	if (cudaStatus != cudaSuccess) {
@@ -602,9 +595,6 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 		m_RGBScaledFramePlanarDetectorptrs[x] = (void*)
 				m_RGBScaledFramePlanarDetector
 						+ x * (640 * (640)) * 3 * sizeof(float);
-
-
-
 
 	return true;
 
@@ -2570,7 +2560,7 @@ void Launch_yuyv_Unpacked_GenerateMask(int iAvgCutOff, int iUse,bool bAutoTrain)
 	const dim3 gridFull(iDivUp(1920, blockRUN.x), iDivUp(1080, blockRUN.y));
 	const int dstAlignedWidthMask = 1920;
 
-	yuyv_Unpacked_GenerateMask << <gridRun, blockRUN >> > (YUV_Unpacked_Video, ChromaGeneratedMask[iUse], LookUpDataArry[iUse], 1920, 1080, dstAlignedWidthUnpackedData1, dstAlignedWidthMask, iAvgCutOff);
+	yuyv_Unpacked_GenerateMask << <gridRun, blockRUN >>> (YUV_Unpacked_Video, ChromaGeneratedMask[iUse], LookUpDataArry[iUse], 1920, 1080, dstAlignedWidthUnpackedData1, dstAlignedWidthMask, iAvgCutOff);
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
@@ -3375,7 +3365,6 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 	double4 Parabolic = Parabolic0;
 	double dBlendPos = iBlendPos0 / 876.0;
 
-
 		if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0 && maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
 		if (maskUpload1[y * dstAlignedWidth + (x * 2) + 0] == 0 || maskUpload1[y * dstAlignedWidth + (x * 2) + 1] == 0)
 		{
@@ -3449,9 +3438,6 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 					calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->x, &macroPxVideo->x, dBlendPos);
 					calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
 				}
-
-
-
 
 }
 
@@ -3937,7 +3923,7 @@ void PrepareYoloData(bool bTakeMask,float fnms)
 
 
 
-void Launch_yuyv10PackedToyuyvUnpacked(int RowLength, bool bSnapShot, int iFrameSizeUnpacked, cuda::GpuMat *RGB_Output_Cuda,int iBot,int iTop,bool bAutoTrain)
+void Launch_yuyv10PackedToyuyvUnpacked(int RowLength, bool bSnapShot, int iFrameSizeUnpacked, cuda::GpuMat *RGB_Output_Cuda, int iBot,int iTop,bool bAutoTrain)
 {
 	cudaError_t cudaStatus;
 	//****************************************************************************************************************************************************
@@ -3980,7 +3966,7 @@ void Launch_yuyv10PackedToyuyvUnpacked(int RowLength, bool bSnapShot, int iFrame
 
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!:\n[Error]: %s",cudaStatus, cudaGetErrorString(cudaStatus));
 
 		return;
 	}

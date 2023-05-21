@@ -670,26 +670,19 @@ bool bGenGenlockStatus()
 }
 void ExitMonitor()
 {
-
 	bExitApp = true;
-
-
-
 }
 
 void StartMonitor()
 {
 	pthread_t threads;
 	int myThreadData=0;
-			int rc;
-			rc = pthread_create(&threads, NULL, StartMonitorthread, (void *) &myThreadData);
+	int rc;
+	rc = pthread_create(&threads, NULL, StartMonitorthread, (void *) &myThreadData);
 
-			if (rc)
-			{
-				std::cout << "Error:unable to create StartMonitorthread thread," << rc << std::endl;
-				exit(-1);
-			}
-
-
-
+	if (rc)
+	{
+		std::cout << "Error:unable to create StartMonitorthread thread," << rc << std::endl;
+		exit(-1);
+	}
 }
