@@ -610,7 +610,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	unsigned int Max_duration=0;
 	VideoIn decklink_video_in; // Input video
 
-	Processor p;
+//	Processor p;
 //	p.sendDataTo();
 
 	while (decklink_video_in.m_sizeOfFrame== -1)
@@ -772,7 +772,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 		auto duration_now = std::chrono::duration_cast<std::chrono::milliseconds>(timer_end - timer_start).count();
 		auto duration_yolo = std::chrono::duration_cast<std::chrono::milliseconds>(timer_endyolo - timer_Launch_yuyv10PackedToyuyvUnpacked).count();
-		auto timer_start_wait_duration=std::chrono::duration_cast<std::chrono::milliseconds>(timer_start-timer_wait_start ).count();//
+		auto timer_start_wait_duration = std::chrono::duration_cast<std::chrono::milliseconds>(timer_start-timer_wait_start ).count();//
 
 		avg_duration[iAvgIndex++]=duration_now;
 		if(iAvgIndex == AVG_CALC)
@@ -807,7 +807,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		#endif
 	}
 
-	std::cout <<"[Launch]: YUYV 10-bit Packed To YUYV Unpacked"<<std::endl;
+	std::cout<<"[Launch]: YUYV 10-bit Packed To YUYV Unpacked"<<std::endl;
 	CudaChromaFree();
 	cudaLookUpFree();
 	return 0;
@@ -1143,9 +1143,11 @@ int main()
 				SetOnAirLookup(0);
 				iUpdateIndex = 0;
 				UpdateSettingsWindow();
+
 				iLastCheck = 0;
 				bTakeOutput = -1;
 				bDoPaintBack=false;
+
 				mtxScreenCard.lock();
 				bTakeMask = true;
 				mtxScreenCard.unlock();

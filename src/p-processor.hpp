@@ -37,6 +37,7 @@ private:
 
 	uchar2 *yPackedCudaVideo, *yPackedCudaFill, *yPackedCudaKey;
 	uchar2* yUnpackedCudaVideo, *yUnpackedCudaFill, *yUnpackedCudaKey;
+	uchar3* cudaRGB;
 	uchar* chromaGeneratedMask[3];
 	uchar* LookUpDataArry[MAX_LOOK_UP];
 	VideoIn deckLinkInput;
@@ -45,8 +46,8 @@ public:
 	Processor()
 	{
 		// Wait for DeckLink Device to receive the first frame and initialize
-		while(this->deckLinkInput.m_sizeOfFrame == -1)std::this_thread::sleep_for(std::chrono::milliseconds(40));
-
+		while(this->deckLinkInput.m_sizeOfFrame == -1)
+			std::this_thread::sleep_for(std::chrono::milliseconds(40));
 
 		this->frameSizePacked = this->deckLinkInput.m_sizeOfFrame;
 		this->frameSizeUnpacked = this->deckLinkInput.m_iFrameSizeUnpacked;
@@ -61,15 +62,16 @@ public:
 		this->yUnpackedCudaFill = nullptr;
 		this->yUnpackedCudaKey = nullptr;
 		this->yUnpackedCudaVideo = nullptr;
+		this->cudaRGB = nullptr;
 
 		this->cudaInit();
-
 	}
 
 	void cudaInit(); // Initialize all the cuda memory (Allocate and Set if necessary)
 	bool toCuda(void* src, void* dst, long int size);
 	void sendDataTo(); // send packed key and fill to cuda.
 	void unpackYUV(); // launch kernels to unpack yuv data and place in buffers above
+	void snapshot(cv::cuda::GpuMat& RGBData);
 
 
 

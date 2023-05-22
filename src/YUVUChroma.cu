@@ -591,7 +591,7 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 
 
 
-	CUDA_CHECK_RETURN(cudaMalloc((void **)&m_RGBScaledFramePlanarDetector,BATCH_SIZE* (640 * (640)) * 3 * sizeof(float)));
+	CUDA_CHECK_RETURN(cudaMalloc((void **)&m_RGBScaledFramePlanarDetector,BATCH_SIZE*(640 * (640)) * 3 * sizeof(float)));
 
 	for (int x = 0; x < BATCH_SIZE; x++)
 		m_RGBScaledFramePlanarDetectorptrs[x] = (void*)
@@ -1172,10 +1172,10 @@ __global__ void yuyvUmPackedToRGB(ulong4* src_Unapc,  uchar3* dst, int srcAligne
 	macroPxKey = &src__Key_Unapc[y * srcAlignedWidth + x];
 
 
-		ulong4 *macroPx;
-		macroPx = &src_Unapc[y * srcAlignedWidth + x];
+	ulong4 *macroPx;
+	macroPx = &src_Unapc[y * srcAlignedWidth + x];
 
-		double3 px_0 = make_double3(clamp(macroPx->y + 1.540f * (macroPx->z - 512.0), 0.0, 1023.0),
+	double3 px_0 = make_double3(clamp(macroPx->y + 1.540f * (macroPx->z - 512.0), 0.0, 1023.0),
 			clamp(macroPx->y - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
 			clamp(macroPx->y + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
 

@@ -53,6 +53,12 @@ void Processor::cudaInit()
 		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaVideo");
 		exit(-1);
 	}
+
+	cudaStatus = cudaMalloc((void**)&this->cudaRGB, this->iWidth*this->iHeight*sizeof(uchar3));
+	if(cudaStatus != cudaSuccess){
+		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaVideo");
+		exit(-1);
+	}
 }
 
 bool Processor::toCuda(void* src, void* dst, long int size)
@@ -128,4 +134,23 @@ void Processor::unpackYUV()
 			);
 
 	this->cudaStatus = cudaDeviceSynchronize();
+}
+
+void Processor::snapshot(cv::cuda::GpuMat& RGBData)
+{
+	const int srcAlignedWidth = this->deckLinkInput.m_RowLength/SIZE_ULONG4_CUDA;
+	const int dstAlignedWidth = 1920/2;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(dstAlignedWidth, block.x), iDivUp(1080, block.y));
+
+	yuyvUmPackedToRGB_lookup <<<grid, block >>> (
+			(uint4 *)this->yUnpackedCudaVideo,
+			this->cudaRGB,
+			dstAlignedWidth,
+			this->iWidth,
+			this->iHeight,
+			(uint4 *)this->yUnpackedCudaKey,
+			nullptr // this variable is not used in the function
+		);
+	RGBData.data = (uchar*)this->cudaRGB;
 }
