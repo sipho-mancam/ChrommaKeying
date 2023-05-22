@@ -608,10 +608,18 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	InitYolov5();
 
 	unsigned int Max_duration=0;
+
+
+
+
 	VideoIn decklink_video_in; // Input video
 
-//	Processor p;
+	Processor p(&decklink_video_in);
+
 //	p.sendDataTo();
+//	VideoIn* decklink_video_in_ptr = p.getVideoIn();
+//	VideoIn decklink_video_in
+	//p.sendDataTo();
 
 	while (decklink_video_in.m_sizeOfFrame== -1)
 	{
@@ -625,15 +633,20 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	FourSettings[1].m_ParabolicFunc = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
 	FourSettings[2].m_ParabolicFunc = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
 
+
+
 	decklink_video_in.WaitForFrames(1);
 	decklink_video_in.imagelistVideo.ClearAll(0);
 	decklink_video_in.imagelistFill.ClearAll(0);
 	decklink_video_in.imagelistKey.ClearAll(0);
 	decklink_video_in.ImagelistOutput.ClearAll(1);
 
+	cuda::GpuMat RGB_Output_Cuda;
 
 	while (!bExitWorkerThread)
 	{
+
+
 
 	//	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		auto timer_wait_start = std::chrono::system_clock::now();
@@ -649,6 +662,23 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		}
 		else
 		{
+
+			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
+			RGB_Output_Cuda.step = 5760;
+			p.run();
+			p.snapshot(&RGB_Output_Cuda);
+
+			cv::Mat cpuPrev;
+
+			try{
+				RGB_Output_Cuda.download(cpuPrev);
+				imshow("Demo", cpuPrev);
+
+			}catch(cv::Exception& e){
+				std::cerr<<e.err<<std::endl;
+			}
+			continue;
+//			p.sendDataTo();
 			decklink_video_in.WaitForFrames(iDelayFrames);
 		}
 
@@ -717,6 +747,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 					true
 					);
 		#else
+
 			Launch_yuyv10PackedToyuyvUnpacked(
 					decklink_video_in.m_RowLength,
 					bTakeMask,
