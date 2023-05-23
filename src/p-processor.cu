@@ -12,7 +12,20 @@
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
 
 /***************/
+void PipelineObj::checkCudaError(std::string action, std::string loc)
+{
+	if(this->cudaStatus != cudaSuccess)
+	{
+		std::cout<<"[Error]: Failed to "<< action<<" to"<< loc <<" \n"
+				<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
+	}
+}
 
+bool PipelineObj::toCuda(void* src, void* dst, long int size)
+{
+	this->cudaStatus = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
+	return this->cudaStatus != cudaSuccess;
+}
 
 
 void Processor::cudaInit()
@@ -21,94 +34,95 @@ void Processor::cudaInit()
 
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaFill, this->frameSizePacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaFill");
+		this->checkCudaError("Allocate memory", " yPackedCudaFill");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaKey, this->frameSizePacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaKey");
+		this->checkCudaError("Allocate memory", " yPackedCudaKey");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaVideo, this->frameSizePacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaVideo");
+		this->checkCudaError("Allocate memory", " yPackedCudaVideo");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaFill, this->frameSizeUnpacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaFill");
+		this->checkCudaError("Allocate memory", " yUnpackedCudaFill");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaKey, this->frameSizeUnpacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaKey");
+		this->checkCudaError("Allocate memory", " yUnpackedCudaKey");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaVideo, this->frameSizeUnpacked);
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaVideo");
+		this->checkCudaError("Allocate memory", " yUnpackedCudaVideo");
 		exit(-1);
 	}
 
 	cudaStatus = cudaMalloc((void**)&this->cudaRGB, this->iWidth*this->iHeight*sizeof(uchar3));
 	if(cudaStatus != cudaSuccess){
-		fprintf(stderr, "Failed to Allocate Memory for: yPackedCudaVideo");
+		this->checkCudaError("Allocate memory", " cudaRGB");
 		exit(-1);
 	}
 
 	std::cout<<"[Info]: Finished initializing cuda variables\n"<<std::endl;
 }
 
-bool Processor::toCuda(void* src, void* dst, long int size)
-{
-	this->cudaStatus = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
-	return this->cudaStatus != cudaSuccess;
-}
 
 void Processor::sendDataTo()
 {
 	// read video from the deck Link card and send it to cuda
 	// retrive frame if there's one to retrieve
-	this->cudaCleanup();
-	this->cudaInit();
 	this->deckLinkInput->WaitForFrames(this->iDelayFrames);
-//	if(this->deckLinkInput->imagelistVideo.GetFrameCount()<1)
-//	{
-//		std::cout<<"No video"<<std::endl;
-//		return;
-//	}
-	void* videoFrame = this->deckLinkInput->imagelistVideo.GetFrame(this->iDelayFrames < this->deckLinkInput->imagelistVideo.GetFrameCount());
+	bool popVid = this->iDelayFrames <= this->deckLinkInput->imagelistVideo.GetFrameCount();
+	static void* videoFrame;
+
+	if(videoFrame)
+		free(videoFrame);
+
+	videoFrame = this->deckLinkInput->imagelistVideo.GetFrame(true);
 	void* keyFrame = this->deckLinkInput->imagelistKey.GetFrame(true);
 	void* fillFrame = this->deckLinkInput->imagelistFill.GetFrame(true);
+
 	cudaError_t cudaStatus;
 
-	if(this->toCuda((void*)videoFrame,(void*)this->yPackedCudaVideo, this->frameSizePacked))
+	if(videoFrame && keyFrame && fillFrame)
 	{
-		fprintf(stderr, "[Error]: Failed to Copy Video to GPU\n[Error]: %s\n", cudaGetErrorString(this->cudaStatus));
-		std::cerr<<"Exiting ..."<<std::endl;
-		exit(-1);
+		if(this->toCuda((void*)videoFrame,(void*)this->yPackedCudaVideo, this->frameSizePacked))
+		{
+			this->checkCudaError("Copy data", " yPackedCudaVideo");
+			exit(-1);
+		}
+
+		if(this->toCuda(keyFrame, this->yPackedCudaKey, this->frameSizePacked))
+		{
+			this->checkCudaError("Copy data", " yPackedCudaKey");
+			exit(-1);
+		}
+
+		if(this->toCuda(fillFrame, this->yPackedCudaFill, this->frameSizePacked))
+		{
+			this->checkCudaError("Copy data", " yPackedCudaFill");
+			exit(-1);
+		}
 	}
 
-	if(this->toCuda(keyFrame, this->yPackedCudaKey, this->frameSizePacked))
-	{
-		fprintf(stderr, "[Error]: Failed to Copy Key to GPU\n[Error]: %s\n", cudaGetErrorString(this->cudaStatus));
-		std::cout<<"Exiting ..."<<std::endl;
-		exit(-1);
-	}
+	if(fillFrame)
+		free(fillFrame);
 
-	if(this->toCuda(fillFrame, this->yPackedCudaFill, this->frameSizePacked))
-	{
-		fprintf(stderr, "[Error]: Failed to Copy Fill to GPU\n[Error]: %s\n", cudaGetErrorString(this->cudaStatus));
-		std::cout<<"Exiting ..."<<std::endl;
-		exit(-1);
-	}
+	if(keyFrame)
+		free(keyFrame);
 
-	std::cout<<"[info]: Done sending data to cuda"<<std::endl;
+//	std::cout<<"[info]: Done sending data to cuda"<<std::endl;
 }
 
 
@@ -127,6 +141,9 @@ void Processor::unpackYUV()
 			dstAlignedWidth,
 			this->iHeight
 		);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize device", " at unpacking");
 	// Unpack yuv key from decklink and store it in yUnpackedCudaKey
 	yuyvPackedToyuyvUnpacked <<<grid, block, 0, this->stream>>>(
 				(uint4*)this->yPackedCudaKey,
@@ -135,6 +152,9 @@ void Processor::unpackYUV()
 				dstAlignedWidth,
 				this->iHeight
 			);
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize device", " at unpacking");
+
 	// Unpack yuv fill from decklink and store it in yUnpackedCudaFill
 	yuyvPackedToyuyvUnpacked <<<grid, block, 0, this->stream>>>(
 				(uint4*)this->yPackedCudaFill,
@@ -145,103 +165,99 @@ void Processor::unpackYUV()
 			);
 
 	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize device", " at unpacking");
 }
 
 void Processor::snapshot(cv::cuda::GpuMat* RGBData)
 {
+	if(this->mtx)
+		this->mtx->lock();
+
 	this->cudaReset();
 	const int srcAlignedWidth = this->deckLinkInput->m_RowLength/SIZE_ULONG4_CUDA;
 	const int dstAlignedWidth = this->iWidth/2;
 	const dim3 block(16, 16);
 	const dim3 grid(iDivUp(dstAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+//
+
+	uint4* video2;
+	cudaMalloc(&video2, this->frameSizeUnpacked);
 
 	yuyvUmPackedToRGB_lookup <<<grid, block , 0, this->stream>>> (
-			(uint4 *)this->yUnpackedCudaVideo,
+			(uint4*)this->yUnpackedCudaVideo,
 			this->cudaRGB,
 			dstAlignedWidth,
 			this->iWidth,
 			this->iHeight,
-			(uint4 *)this->yUnpackedCudaKey,
+//			(uint4*)this->yUnpackedCudaKey,
+			video2,
 			nullptr // this variable is not used in the function
 		);
-
+//
 	this->cudaStatus = cudaDeviceSynchronize();
-	if(this->cudaStatus!=cudaSuccess)fprintf(stderr, "[Error]: Failed to syn with Device: yuvutoRGB");
+	this->checkCudaError("synchronize device", " at yUyVUnpackedToRGB");
 
 	this->cudaStatus = cudaMemcpy(RGBData->data, (uchar*)this->cudaRGB, this->iWidth*this->iHeight*sizeof(uchar3), cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", " from cudaRGB to RGBData->data");
 
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to copy memory to RGBData->data"<<std::endl;
-	}
+//	std::cout<<"[info]: Finished copying snapshot\n";
+	cudaFree(video2);
 
-	std::cout<<"[info]: Finished copying snapshot\n";
+	if(this->mtx)
+			this->mtx->unlock();
 }
 
 void Processor::cudaReset()
 {
 	this->cudaStatus = cudaMemset(this->cudaRGB, 0, this->iHeight*this->iWidth*sizeof(uchar));
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to reset cudaRGB"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("reset", "cudaRGB");
 }
 
 void Processor::cudaCleanup()
 {
 	this->cudaStatus = cudaFree(this->yPackedCudaFill);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yPackedCudaFill"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yPackedCudaFill");
 
 	this->cudaStatus = cudaFree(this->yPackedCudaVideo);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yPackedCudaVideo"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yPackedCudaVideo");
 
 	this->cudaStatus = cudaFree(this->yPackedCudaKey);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yPackedCudaKey"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yUnpackedCudaKey");
 
 	this->cudaStatus = cudaFree(this->yUnpackedCudaFill);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yUnpackedCudaFill"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yUnpackedCudaFill");
 
 	this->cudaStatus = cudaFree(this->yUnpackedCudaVideo);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yUnpackedCudaVideo"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yUnpackedCudaVideo");
 
 	this->cudaStatus = cudaFree(this->yUnpackedCudaKey);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free yUnpackedCudaKey"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "yUnpackadCudaKey");
 
 	this->cudaStatus = cudaFree(this->cudaRGB);
-	if(this->cudaStatus != cudaSuccess)
-	{
-		std::cout<<"[Error]: Failed to free cudaRGB"<<std::endl;
-		std::cout<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
-	}
+	this->checkCudaError("free", "cudaRGB");
+
 }
 
 void Processor::run()
 {
+	if(this->mtx)
+		this->mtx->lock();
+
 	this->sendDataTo();
 	this->unpackYUV();
+	if(this->mtx)
+		this->mtx->unlock();
+}
+
+void ChrommaKey::cudaInit()
+{
+	int i = 0;
+	this->cudaStatus = cudaMalloc(this->chromaGeneratedMask, 3*sizeof(uchar*));
+	this->checkCudaError("Allocate memory", "chromeGeneratedMask");
+
+	for(i=0; i<3; i++)
+	{
+		this->cudaStatus = cudaMalloc(this->chromaGeneratedMask, this->iHeight*this->iWidth*sizeof(uchar));
+		this->checkCudaError("Allocate memory", "chromeGeneratedMask");
+	}
 }

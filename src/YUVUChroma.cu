@@ -3978,7 +3978,7 @@ void Launch_yuyv10PackedToyuyvUnpacked(int RowLength, bool bSnapShot, int iFrame
 #endif
 
 
-	if (bSnapShot)
+	if (1)//bSnapShot)
 	{
 		cudaStatus = cudaMemcpy(YUV_Unpacked_Video_SnapShot,YUV_Unpacked_Video,  iFrameSizeUnpacked, cudaMemcpyDeviceToDevice);
 		if (cudaStatus != cudaSuccess) {
@@ -3994,7 +3994,7 @@ void Launch_yuyv10PackedToyuyvUnpacked(int RowLength, bool bSnapShot, int iFrame
 		const dim3 blockRGB(16, 16);
 		const dim3 gridRGB(iDivUp(dstAlignedWidthUnpackedData, block.x), iDivUp(1080, block.y));
 		const int dstAlignedWidthRGB = 1920;
-		yuyvUmPackedToRGB_lookup << <gridRGB, blockRGB >> > ((uint4 *)YUV_Unpacked_Video_SnapShot, DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080, (uint4 *)YUV_Unpacked_Key, ptrLookUpData);
+		yuyvUmPackedToRGB_lookup <<<gridRGB, blockRGB>>> ((uint4 *)YUV_Unpacked_Video, DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080, (uint4 *)YUV_Unpacked_Key, ptrLookUpData);
 
 		cudaStatus = cudaDeviceSynchronize();
 		if (cudaStatus != cudaSuccess) {
@@ -4018,34 +4018,36 @@ void Launch_yuyvDilateAndErode( int iDilate, int iErode, int iUse)//https://docs
 
 	cudaError_t cudaStatus;
 	cudaStatus = cudaMemset(MaskRefineScratch, 0, (m_iWidth * (m_iHeight)) * sizeof(uchar));//4228250625
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
-			return;
-		}
-		GpuMat test_gpu_smooth;
-		GpuMat test_gpu1(1080/2,1920*2,CV_8UC1,ChromaGeneratedMask[iUse],Mat::CONTINUOUS_FLAG);
-		test_gpu1.step=1920*2;
+
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMalloc failed!");
+		return;
+	}
+	GpuMat test_gpu_smooth;
+	GpuMat test_gpu1(1080/2,1920*2,CV_8UC1, ChromaGeneratedMask[iUse],Mat::CONTINUOUS_FLAG);
+	test_gpu1.step=1920*2;
 
 
 
-		int erode_dilate_pos=iErode;
-		int max_iters=1;
-		int n = erode_dilate_pos - max_iters;
-		int an = iErode;
+	int erode_dilate_pos=iErode;
+	int max_iters=1;
+	int n = erode_dilate_pos - max_iters;
+	int an = iErode;
 
-		Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
-		Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, test_gpu1.type(), element);
-		erodeFilter->apply(test_gpu1, test_gpu_smooth);
+	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, test_gpu1.type(), element);
+	erodeFilter->apply(test_gpu1, test_gpu_smooth);
 
 
-		 erode_dilate_pos=-iErode;
+	 erode_dilate_pos=-iErode;
 
-		 n = erode_dilate_pos - max_iters;
-		 an = iDilate;
-		 element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	 n = erode_dilate_pos - max_iters;
+	 an = iDilate;
+	 element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
 
-		Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, test_gpu1.type(), element);
-		erodeFilter2->apply(test_gpu_smooth, test_gpu1);
+	Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, test_gpu1.type(), element);
+	erodeFilter2->apply(test_gpu_smooth, test_gpu1);
 
 
 	//	Ptr<cv::cuda::Filter> gaussianfilter = cv::cuda::createGaussianFilter( test_gpu1.type(), test_gpu1.type(),Size(3,3),6,3,BORDER_DEFAULT,-1);

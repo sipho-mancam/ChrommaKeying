@@ -6,40 +6,49 @@
 #include <InputLoopThrough.h>
 #include <thread>
 #include <cuda_runtime.h>
+#include <cassert>
 
 #define MAX_LOOK_UP 3
 #define CUDA_LOOKUP_SIZE 1073741824  // 134217728 1024*1024*1024
 #define SIZE_ULONG4_CUDA 16
 
-class PipeLineObj{
+class PipelineObj{
 private:
 	int id = 0;
 
-public:
-	PipeLineObj()
-	{
-
-	}
-
-	int getId(){return this->id;}
-};
-
-class Processor{
-
-private:
+protected:
+	cudaError_t cudaStatus;
+	cudaStream_t stream;
 	long int frameSizePacked;
 	long int frameSizeUnpacked;
 	int iWidth;
 	int iHeight;
-	int iDelayFrames;
-	cudaError_t cudaStatus;
-	cudaStream_t stream;
+	std::mutex* mtx;
 
-	uchar2 *yPackedCudaVideo, *yPackedCudaFill, *yPackedCudaKey;
+	virtual void cudaCleanup()=0;
+	virtual void cudaInit() = 0;
+	int getId(){return this->id;}
+	bool toCuda(void* src, void* dst, long int size);
+
+public:
+	cudaStream_t getCudaStream(){return this->stream;}
+	void checkCudaError(std::string action, std::string loc);
+	long int getFrameSize(){return this->frameSizeUnpacked;}
+	int getWidth(){ return this->iWidth;}
+	int getHeight(){return this->iHeight;}
+	virtual ~PipelineObj() = default;
+	void setMutex(std::mutex *m){this->mtx = m;}
+	std::mutex* getMutex(){return this->mtx;}
+};
+
+
+
+class Processor: public PipelineObj{
+private:
+	int iDelayFrames;
+	uchar2* yPackedCudaVideo, *yPackedCudaFill, *yPackedCudaKey;
 	uchar2* yUnpackedCudaVideo, *yUnpackedCudaFill, *yUnpackedCudaKey;
 	uchar3* cudaRGB;
-	uchar* chromaGeneratedMask[3];
-	uchar* LookUpDataArry[MAX_LOOK_UP];
 	VideoIn* deckLinkInput;
 
 public:
@@ -66,6 +75,7 @@ public:
 		this->cudaRGB = nullptr;
 
 		this->cudaInit();
+		this->mtx = nullptr;
 	}
 	Processor(VideoIn *vi)
 	{
@@ -88,6 +98,7 @@ public:
 		this->yUnpackedCudaKey = nullptr;
 		this->yUnpackedCudaVideo = nullptr;
 		this->cudaRGB = nullptr;
+		this->mtx = nullptr;
 
 		this->cudaInit();
 	}
@@ -96,16 +107,56 @@ public:
 	{
 		this->cudaCleanup();
 	}
-
-	void cudaCleanup();
-	void cudaInit(); // Initialize all the cuda memory (Allocate and Set if necessary)
-	bool toCuda(void* src, void* dst, long int size);
+	// Initialize all the cuda memory (Allocate and Set if necessary)
 	void sendDataTo(); // send packed key and fill to cuda.
 	void unpackYUV(); // launch kernels to unpack yuv data and place in buffers above
 	void snapshot(cv::cuda::GpuMat* RGBData);
 	VideoIn* getVideoIn(){return this->deckLinkInput;}
-	void cudaReset();
+	uchar2* getVideo(){return this->yUnpackedCudaVideo;}
+	uchar2* getKey(){return this->yUnpackedCudaKey;}
+	uchar2* getFill(){return this->yUnpackedCudaFill;}
 
 	void run();
+	void cudaCleanup() override;
+	void cudaInit() override;
+	void cudaReset();
+
+};
+
+
+class ChrommaKey : public PipelineObj {
+private:
+
+	Processor* proc;
+	uchar**  chromaGeneratedMask;
+	uchar**  lookupTable;
+	int iWidth;
+	int iHeight;
+	long int frameSize;
+	uchar2* video, *key, *fill;
+
+
+public:
+	ChrommaKey(Processor *p)
+	{
+		assert((p!=nullptr));
+		this->proc = p;
+		this->chromaGeneratedMask = nullptr;
+		this->lookupTable = nullptr;
+		this->stream = this->proc->getCudaStream();
+		this->iWidth = this->proc->getHeight();
+		this->iHeight = this->proc->getWidth();
+		this->frameSize = this->proc->getFrameSize();
+		this->video = this->proc->getVideo();
+		this->key = this->proc->getVideo();
+		this->fill = this->proc->getFill();
+	}
+
+	void cudaInit() override;
+	void cudaCleanup() override;
+	void generateChrommaMask();
+	void updateLookup();
+	void erodeAndDilate();
+
 
 };

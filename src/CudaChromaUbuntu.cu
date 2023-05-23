@@ -616,6 +616,8 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 	Processor p(&decklink_video_in);
 
+	p.setMutex(&mtxScreenCard);
+
 //	p.sendDataTo();
 //	VideoIn* decklink_video_in_ptr = p.getVideoIn();
 //	VideoIn decklink_video_in
@@ -662,7 +664,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		}
 		else
 		{
-
+//
 			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
 			RGB_Output_Cuda.step = 5760;
 			p.run();
@@ -838,6 +840,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		#endif
 	}
 
+//	delete p;
 	std::cout<<"[Launch]: YUYV 10-bit Packed To YUYV Unpacked"<<std::endl;
 	CudaChromaFree();
 	cudaLookUpFree();
