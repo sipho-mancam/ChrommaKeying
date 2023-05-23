@@ -153,8 +153,9 @@ public:
 	void cudaInit() override;
 	void cudaCleanup() override;
 	void generateChrommaMask();
+	void erodeAndDilate(int, int);
 	void updateLookup();
-	void erodeAndDilate();
+
 
 	~ChrommaKey()
 	{
