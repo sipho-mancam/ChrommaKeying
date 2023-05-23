@@ -9,8 +9,9 @@
 #include <cassert>
 
 #define MAX_LOOK_UP 3
-#define CUDA_LOOKUP_SIZE 1073741824  // 134217728 1024*1024*1024
+#define CUDA_LOOKUP_SIZE 1073741824  // 1024*1024*1024
 #define SIZE_ULONG4_CUDA 16
+
 
 class PipelineObj{
 private:
@@ -25,7 +26,7 @@ protected:
 	int iHeight;
 	std::mutex* mtx;
 
-	virtual void cudaCleanup()=0;
+	virtual void cudaCleanup() = 0;
 	virtual void cudaInit() = 0;
 	int getId(){return this->id;}
 	bool toCuda(void* src, void* dst, long int size);
@@ -130,9 +131,6 @@ private:
 	Processor* proc;
 	uchar**  chromaGeneratedMask;
 	uchar**  lookupTable;
-	int iWidth;
-	int iHeight;
-	long int frameSize;
 	uchar2* video, *key, *fill;
 
 
@@ -146,7 +144,7 @@ public:
 		this->stream = this->proc->getCudaStream();
 		this->iWidth = this->proc->getHeight();
 		this->iHeight = this->proc->getWidth();
-		this->frameSize = this->proc->getFrameSize();
+		this->frameSizeUnpacked = this->proc->getFrameSize();
 		this->video = this->proc->getVideo();
 		this->key = this->proc->getVideo();
 		this->fill = this->proc->getFill();
@@ -157,6 +155,11 @@ public:
 	void generateChrommaMask();
 	void updateLookup();
 	void erodeAndDilate();
+
+	~ChrommaKey()
+	{
+		this->cudaCleanup();
+	}
 
 
 };

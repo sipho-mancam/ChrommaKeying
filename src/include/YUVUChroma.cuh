@@ -42,8 +42,10 @@ bool CudaChromaFree();
 __global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,int srcAlignedWidth, int dstAlignedWidth, int height);
 __global__ void yuyvUnPackedToPlanarRGB_Split(uint4* src_Unapc, uint8_t *dpRgbA,uint8_t *dpRgbB, uint8_t *dpRgbC, uint8_t *dpRgbD,	uint32_t dstPlanePitchDst/*640 *sizeof(float)*/, int srcAlignedWidth,		int height, int dstHeight);
 __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc, uint4* src__Fill_Unapc, uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, uchar *maskUpload1, uchar *maskUpload2, int iBlendPos0, int iBlendPos1, int iBlendPos2, double4 Parabolic0, double4 Parabolic1, double4 Parabolic2, unsigned long int iCutOff, unsigned long int iCutOff0, unsigned long int iCutOff1, unsigned long int iCutOff2);
-__global__ void yuyvUnPackedToPlanarRGB_Split(uint4* src_Unapc, uint8_t *dpRgbA,uint8_t *dpRgbB, uint8_t *dpRgbC, uint8_t *dpRgbD,	uint32_t dstPlanePitchDst/*640 *sizeof(float)*/, int srcAlignedWidth,		int height, int dstHeight);
+__global__ void yuyvUnPackedToPlanarRGB_Split(uint4*, uint8_t* ,uint8_t*, uint8_t*, uint8_t*,	uint32_t ,int,int , int);
 __global__ void yuyvUmPackedToRGB_lookup(uint4* , uchar3* , int , int , int , uint4* , uchar* );
+__global__ void yuyv_Unpacked_GenerateMask(uint4* , uchar*, uchar* , int , int, int , int ,int);
+
 
 void PrepareYoloData(bool bSnapShot,float fnms);
 void SetOnAirLookup(int iLookup);

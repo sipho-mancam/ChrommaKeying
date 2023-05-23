@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #include <YUVUChroma.cuh>
 #include <stdio.h>
+#include <opencv2/cudafilters.hpp>
 
 
 /**** Utils *****/
@@ -249,15 +250,101 @@ void Processor::run()
 		this->mtx->unlock();
 }
 
+
 void ChrommaKey::cudaInit()
 {
 	int i = 0;
-	this->cudaStatus = cudaMalloc(this->chromaGeneratedMask, 3*sizeof(uchar*));
+	this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask, 3*sizeof(uchar*));
 	this->checkCudaError("Allocate memory", "chromeGeneratedMask");
 
-	for(i=0; i<3; i++)
+	this->cudaStatus = cudaMalloc((void**)&this->lookupTable, 3*sizeof(uchar*));
+	this->checkCudaError("Allocate memory", "LookupTable");
+
+	for(i=0; i<MAX_LOOK_UP; i++)
 	{
-		this->cudaStatus = cudaMalloc(this->chromaGeneratedMask, this->iHeight*this->iWidth*sizeof(uchar));
-		this->checkCudaError("Allocate memory", "chromeGeneratedMask");
+		this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask[i], this->iHeight*this->iWidth*sizeof(uchar));
+		this->checkCudaError("Allocate memory", "chromeGeneratedMask child");
+
+		this->cudaStatus = cudaMalloc((void**)&this->lookupTable[i], this->iHeight*this->iWidth*sizeof(uchar));
+		this->checkCudaError("Allocate memory", "LookupTable child");
 	}
+}
+
+void ChrommaKey::cudaCleanup()
+{
+	int i = 0;
+
+	for(i=0; i<MAX_LOOK_UP; i++)
+	{
+		this->cudaStatus = cudaFree(this->chromaGeneratedMask[i]);
+		this->checkCudaError("Free memory", "chromeGeneratedMask child");
+
+		this->cudaStatus = cudaFree(this->lookupTable[i]);
+		this->checkCudaError("Free memory", "LookupTable child");
+	}
+
+	this->cudaStatus = cudaFree(this->chromaGeneratedMask);
+	this->checkCudaError("Free memory", "chromeGeneratedMask");
+
+	this->cudaStatus = cudaFree(this->lookupTable);
+	this->checkCudaError("Free memory", "LookupTable");
+}
+
+void ChrommaKey::generateChrommaMask()
+{
+	const int dstAlignedWidth = this->iWidth;
+	const int srcAlignedWidth = this->iWidth/2;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+
+	yuyv_Unpacked_GenerateMask <<<grid, block, 0, this->stream>>> (
+			(uint4*)this->video,
+			this->chromaGeneratedMask[0],
+			this->lookupTable[0],
+			this->iWidth,
+			this->iHeight,
+			srcAlignedWidth,
+			dstAlignedWidth,
+			0
+			);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize host", "yuyvGenerateMask");
+	assert((this->cudaStatus == cudaSuccess));
+
+}
+
+void ChrommaKey::erodeAndDilate(int iErode, int iDilate)
+{
+	cv::cuda::GpuMat chrommaMaskInput;
+	cv::cuda::GpuMat chrommaMaskOutput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->chromaGeneratedMask[0],Mat::CONTINUOUS_FLAG);
+	chrommaMaskOutput.step=this->iWidth*2;
+
+
+
+	int erode_dilate_pos= 0;
+	int max_iters=1;
+	int n = erode_dilate_pos - max_iters;
+	int an = iErode;
+
+	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+
+	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, chrommaMaskInput.type(), element);
+	erodeFilter->apply(chrommaMaskInput, chrommaMaskOutput);
+
+
+	 erode_dilate_pos=-iErode;
+
+	 n = erode_dilate_pos - max_iters;
+	 an = iDilate;
+	 element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+
+	Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, test_gpu1.type(), element);
+	erodeFilter2->apply(test_gpu_smooth, test_gpu1);
+
+}
+
+void ChrommaKey::updateLookup()
+{
+
 }

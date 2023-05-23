@@ -665,21 +665,21 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		else
 		{
 //
-			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
-			RGB_Output_Cuda.step = 5760;
-			p.run();
-			p.snapshot(&RGB_Output_Cuda);
-
-			cv::Mat cpuPrev;
-
-			try{
-				RGB_Output_Cuda.download(cpuPrev);
-				imshow("Demo", cpuPrev);
-
-			}catch(cv::Exception& e){
-				std::cerr<<e.err<<std::endl;
-			}
-			continue;
+//			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
+//			RGB_Output_Cuda.step = 5760;
+//			p.run();
+//			p.snapshot(&RGB_Output_Cuda);
+//
+//			cv::Mat cpuPrev;
+//
+//			try{
+//				RGB_Output_Cuda.download(cpuPrev);
+//				imshow("Demo", cpuPrev);
+//
+//			}catch(cv::Exception& e){
+//				std::cerr<<e.err<<std::endl;
+//			}
+//			continue;
 //			p.sendDataTo();
 			decklink_video_in.WaitForFrames(iDelayFrames);
 		}
