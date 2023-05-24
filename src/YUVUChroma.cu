@@ -2981,9 +2981,9 @@ void Launch_UpdateLookupFrom_XY_Posision(int istartX, int iStartY, int iEndX, in
 
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-					return;
-				}
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+		return;
+	}
 }
 
 __global__ void yuyvUnpackedGenerateMask(uint4* src_Video_Unapc,uint4* src__Key_Unapc, uchar *maskUpload, uchar *maskDownload, uchar* LookupTable, int width, int height, int srcAlignedWidth, int dstAlignedWidth,int bTraining, uint4 *LookUpColorDataOneDimention_Unpacked1, int iUV_Diameter, int iLum_Diameter)

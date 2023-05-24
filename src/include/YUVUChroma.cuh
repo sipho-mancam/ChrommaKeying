@@ -36,15 +36,75 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit,int iFrameSi
 bool CudaChromaFree();
 //bool ConvertToRGB(void *RGBData, unsigned char blend);
 
+struct MouseData
+{
 
+	int iXDown = 0;
+	int iYDown = 0;
+	int iXUp = 0;
+	int iYUp = 0;
+	int iXDownDynamic = 0;
+	int iYDownDynamic = 0;
+	int iXUpDynamic = 0;
+	int iYUpDynamic = 0;
+	int x;
+	int y;
+
+	bool bHandleLDown = false;
+	bool bHandleRDown = false;
+	bool bHandleL = false;
+	bool bHandleR = false;
+
+};
+
+struct WindowSettings
+{
+	int m_iUV_Diam;
+	int m_iLum_Diam;
+	int m_iOuter_Diam ;
+	int m_iErase_Diam ;
+	int m_iErase_Lum_Diam ;
+
+	int m_iErode;
+	int m_iDilate ;
+	int m_iLowerlimit ;
+	int m_iUpperlimit ;
+
+	int m_cunnyb;
+
+	int m_cunnyt;
+	double4 m_ParabolicFunc;
+
+	public:
+		WindowSettings()
+		{
+			m_iUV_Diam=4;
+			m_iLum_Diam=2;
+			m_iOuter_Diam=14;
+			m_iErase_Diam=15;
+			m_iErase_Lum_Diam=15;
+			 m_cunnyb=125;
+			 m_cunnyt=274;
+			m_iErode=2;
+			m_iDilate=1;
+
+
+			//m_BlendPos = 0;
+			m_iLowerlimit = 80;
+			m_iUpperlimit=80;
+		}
+
+
+};
 //void Launch_yuyvToRgba10(int RowLength, void *RGBData, int iBlendPos, void *Mask, bool bDownloadRGB);
 
-__global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,int srcAlignedWidth, int dstAlignedWidth, int height);
-__global__ void yuyvUnPackedToPlanarRGB_Split(uint4* src_Unapc, uint8_t *dpRgbA,uint8_t *dpRgbB, uint8_t *dpRgbC, uint8_t *dpRgbD,	uint32_t dstPlanePitchDst/*640 *sizeof(float)*/, int srcAlignedWidth,		int height, int dstHeight);
-__global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc, uint4* src__Fill_Unapc, uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, uchar *maskUpload1, uchar *maskUpload2, int iBlendPos0, int iBlendPos1, int iBlendPos2, double4 Parabolic0, double4 Parabolic1, double4 Parabolic2, unsigned long int iCutOff, unsigned long int iCutOff0, unsigned long int iCutOff1, unsigned long int iCutOff2);
+__global__ void yuyvPackedToyuyvUnpacked(uint4* , uint4 *,int , int , int );
+__global__ void yuyvUnPackedToPlanarRGB_Split(uint4* , uint8_t *,uint8_t *, uint8_t *, uint8_t *, uint32_t , int ,int , int );
+__global__ void yuyvUnpackedComBineDataThreeLookups(uint4* , uint4* , uint4* , int , int , int , int , uchar *, uchar *, uchar *, int , int , int , double4 , double4 , double4 , unsigned long int , unsigned long int , unsigned long int , unsigned long int );
 __global__ void yuyvUnPackedToPlanarRGB_Split(uint4*, uint8_t* ,uint8_t*, uint8_t*, uint8_t*,	uint32_t ,int,int , int);
 __global__ void yuyvUmPackedToRGB_lookup(uint4* , uchar3* , int , int , int , uint4* , uchar* );
 __global__ void yuyv_Unpacked_GenerateMask(uint4* , uchar*, uchar* , int , int, int , int ,int);
+__global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* , uchar* , int , int , int , int ,int , int ,float ,int );//
 
 
 void PrepareYoloData(bool bSnapShot,float fnms);

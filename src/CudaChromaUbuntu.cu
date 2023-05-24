@@ -90,26 +90,7 @@ std::mutex mtxScreenCard;           // mutex for critical section
 float m_fNMS=0.45;;
 int m_BlendPos = 480;
 
-struct MouseData
-{
 
-	int iXDown = 0;
-	int iYDown = 0;
-	int iXUp = 0;
-	int iYUp = 0;
-	int iXDownDynamic = 0;
-	int iYDownDynamic = 0;
-	int iXUpDynamic = 0;
-	int iYUpDynamic = 0;
-	int x;
-	int y;
-
-	bool bHandleLDown = false;
-	bool bHandleRDown = false;
-	bool bHandleL = false;
-	bool bHandleR = false;
-
-};
 
 MouseData MouseData1;
 MouseData MouseData2;
@@ -133,45 +114,7 @@ double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double 
 
 }
 
-struct WindowSettings
-{
-	int m_iUV_Diam;
-	int m_iLum_Diam;
-	int m_iOuter_Diam ;
-	int m_iErase_Diam ;
-	int m_iErase_Lum_Diam ;
 
-	int m_iErode;
-	int m_iDilate ;
-	int m_iLowerlimit ;
-	int m_iUpperlimit ;
-
-	int m_cunnyb;
-
-	int m_cunnyt;
-	double4 m_ParabolicFunc;
-
-	public:
-		WindowSettings()
-		{
-			m_iUV_Diam=4;
-			m_iLum_Diam=2;
-			m_iOuter_Diam=14;
-			m_iErase_Diam=15;
-			m_iErase_Lum_Diam=15;
-			 m_cunnyb=125;
-			 m_cunnyt=274;
-			m_iErode=2;
-			m_iDilate=1;
-
-
-			//m_BlendPos = 0;
-			m_iLowerlimit = 80;
-			m_iUpperlimit=80;
-		}
-
-
-};
 int iUpdateIndex = 0;
 WindowSettings FourSettings[3];
 //FourSettings[0].m_BlendPos=877;
@@ -664,7 +607,6 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		}
 		else
 		{
-//
 //			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
 //			RGB_Output_Cuda.step = 5760;
 //			p.run();
@@ -961,7 +903,7 @@ void UpdateLookupFromMouse()
 					Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
 							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, FourSettings[iUpdateIndex].m_iUV_Diam,
 							FourSettings[iUpdateIndex].m_iLum_Diam, FourSettings[iUpdateIndex].m_iOuter_Diam, 200,bDoPaintBack);
-
+//					std::cout<<"I execute"<<std::endl;
 					mtxScreenCard.unlock();
 				}
 				else
@@ -975,7 +917,7 @@ void UpdateLookupFromMouse()
 
 					Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
 							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, 1, 10, 5, 200,bDoPaintBack);
-
+					std::cout<<"I execute"<<std::endl;
 					mtxScreenCard.unlock();
 				}
 				return;

@@ -7,10 +7,12 @@
 #include <thread>
 #include <cuda_runtime.h>
 #include <cassert>
+#include <YUVUChroma.cuh>
 
 #define MAX_LOOK_UP 3
 #define CUDA_LOOKUP_SIZE 1073741824  // 1024*1024*1024
 #define SIZE_ULONG4_CUDA 16
+#define MAX_PATH 260
 
 
 class PipelineObj{
@@ -80,7 +82,9 @@ public:
 	}
 	Processor(VideoIn *vi)
 	{
+		assert((vi!=nullptr));
 		this->deckLinkInput = vi;
+
 		// Wait for DeckLink Device to receive the first frame and initialize
 		while(this->deckLinkInput->m_sizeOfFrame == -1)
 			std::this_thread::sleep_for(std::chrono::milliseconds(40));
@@ -154,7 +158,7 @@ public:
 	void cudaCleanup() override;
 	void generateChrommaMask();
 	void erodeAndDilate(int, int);
-	void updateLookup();
+	void updateLookup(bool init , bool clickEn, MouseData md, WindowSettings ws);
 
 
 	~ChrommaKey()

@@ -333,7 +333,46 @@ void ChrommaKey::erodeAndDilate(int iErode, int iDilate)
 	erodeFilter2->apply(chrommaMaskInput, chrommaMaskOutput);
 }
 
-void ChrommaKey::updateLookup()
+void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings ws)
 {
+//	if(!init)return;
+	if(!clickEn)return;
 
+	if (md.bHandleLDown)
+	{
+		this->mtx->lock();
+		int maxRecSize = 200;
+		float ScalingValue = maxRecSize*1.0/ws.m_iOuter_Diam*1.0;
+
+		const dim3 block(16, 16);
+		const dim3 grid(iDivUp((ws.m_iOuter_Diam+ ws.m_iUV_Diam)*2, block.x), iDivUp((ws.m_iOuter_Diam + ws.m_iUV_Diam)*2, block.y));
+		uchar* ptrLookUpDataToUse = this->lookupTable[0];
+
+			if(pb)
+				ptrLookUpDataToUse = this->lookupTable[1];
+
+
+		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic/2); x++)
+		{
+			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
+			{
+				UpdateLookupFrom_XY_Posision_Diffrent_Scaling <<<grid, block>>> (
+						(uint4*)this->video,
+						ptrLookUpDataToUse,
+						x, y,
+						(this->iHeight / 2),
+						ws.m_iOuter_Diam*2,
+						ws.m_iUV_Diam*2,
+						ws.m_iLum_Diam,
+						ScalingValue,
+						maxRecSize);
+			}
+		}
+
+
+		this->cudaStatus = cudaDeviceSynchronize();
+		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
+		this->mtx->unlock();
+	}
+	return;
 }
