@@ -31,55 +31,44 @@ bool PipelineObj::toCuda(void* src, void* dst, long int size)
 
 void Processor::cudaInit()
 {
-	cudaError_t cudaStatus;
-
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaFill, this->frameSizePacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yPackedCudaFill");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yPackedCudaFill");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaKey, this->frameSizePacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yPackedCudaKey");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yPackedCudaKey");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->yPackedCudaVideo, this->frameSizePacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yPackedCudaVideo");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yPackedCudaVideo");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaFill, this->frameSizeUnpacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yUnpackedCudaFill");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yUnpackedCudaFill");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaKey, this->frameSizeUnpacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yUnpackedCudaKey");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yUnpackedCudaKey");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->yUnpackedCudaVideo, this->frameSizeUnpacked);
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " yUnpackedCudaVideo");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " yUnpackedCudaVideo");
+	assert(this->cudaStatus==cudaSuccess);
 
 	cudaStatus = cudaMalloc((void**)&this->cudaRGB, this->iWidth*this->iHeight*sizeof(uchar3));
-	if(cudaStatus != cudaSuccess){
-		this->checkCudaError("Allocate memory", " cudaRGB");
-		exit(-1);
-	}
+	this->checkCudaError("Allocate memory", " cudaRGB");
+	assert(this->cudaStatus==cudaSuccess);
 
+	cudaStatus = cudaMalloc((void**)&this->videoSnapshot, this->frameSizeUnpacked);
+	this->checkCudaError("Allocate memory", "videoSnapshot");
+	assert(this->cudaStatus==cudaSuccess);
+
+	// log some shit here ...
 	std::cout<<"[Info]: Finished initializing cuda variables\n"<<std::endl;
 }
 
 
-void Processor::sendDataTo()
+void Processor::sendDataTo(bool pop = true)
 {
 	// read video from the deck Link card and send it to cuda
 	// retrive frame if there's one to retrieve
@@ -90,30 +79,29 @@ void Processor::sendDataTo()
 	if(videoFrame)
 		free(videoFrame);
 
-	videoFrame = this->deckLinkInput->imagelistVideo.GetFrame(true);
-	void* keyFrame = this->deckLinkInput->imagelistKey.GetFrame(true);
-	void* fillFrame = this->deckLinkInput->imagelistFill.GetFrame(true);
+	videoFrame = this->deckLinkInput->imagelistVideo.GetFrame(pop);
+	void* keyFrame = this->deckLinkInput->imagelistKey.GetFrame(pop);
+	void* fillFrame = this->deckLinkInput->imagelistFill.GetFrame(pop);
 
-	cudaError_t cudaStatus;
 
 	if(videoFrame && keyFrame && fillFrame)
 	{
 		if(this->toCuda((void*)videoFrame,(void*)this->yPackedCudaVideo, this->frameSizePacked))
 		{
 			this->checkCudaError("Copy data", " yPackedCudaVideo");
-			exit(-1);
+			assert(this->cudaStatus==cudaSuccess);
 		}
 
 		if(this->toCuda(keyFrame, this->yPackedCudaKey, this->frameSizePacked))
 		{
 			this->checkCudaError("Copy data", " yPackedCudaKey");
-			exit(-1);
+			assert(this->cudaStatus==cudaSuccess);
 		}
 
 		if(this->toCuda(fillFrame, this->yPackedCudaFill, this->frameSizePacked))
 		{
 			this->checkCudaError("Copy data", " yPackedCudaFill");
-			exit(-1);
+			assert(this->cudaStatus==cudaSuccess);
 		}
 	}
 
@@ -174,6 +162,8 @@ void Processor::snapshot(cv::cuda::GpuMat* RGBData)
 	if(this->mtx)
 		this->mtx->lock();
 
+	this->takeSnapShot();
+
 	this->cudaReset();
 	const int srcAlignedWidth = this->deckLinkInput->m_RowLength/SIZE_ULONG4_CUDA;
 	const int dstAlignedWidth = this->iWidth/2;
@@ -185,7 +175,7 @@ void Processor::snapshot(cv::cuda::GpuMat* RGBData)
 	cudaMalloc(&video2, this->frameSizeUnpacked);
 
 	yuyvUmPackedToRGB_lookup <<<grid, block , 0, this->stream>>> (
-			(uint4*)this->yUnpackedCudaVideo,
+			(uint4*)this->videoSnapshot,
 			this->cudaRGB,
 			dstAlignedWidth,
 			this->iWidth,
@@ -206,6 +196,17 @@ void Processor::snapshot(cv::cuda::GpuMat* RGBData)
 
 	if(this->mtx)
 			this->mtx->unlock();
+}
+
+void Processor::takeSnapShot()
+{
+	this->cudaStatus = cudaMemcpy(this->videoSnapshot, this->yUnpackedCudaVideo,  this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
+	this->checkCudaError("Copy memory", "videoSnapshot");
+}
+
+uchar2* Processor::getSnapShot()
+{
+	return this->videoSnapshot;
 }
 
 void Processor::cudaReset()
@@ -256,18 +257,23 @@ void ChrommaKey::cudaInit()
 	int i = 0;
 	this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask, 3*sizeof(uchar*));
 	this->checkCudaError("Allocate memory", "chromeGeneratedMask");
+	assert(this->cudaStatus==cudaSuccess);
 
 	this->cudaStatus = cudaMalloc((void**)&this->lookupTable, 3*sizeof(uchar*));
 	this->checkCudaError("Allocate memory", "LookupTable");
+	assert(this->cudaStatus==cudaSuccess);
 
 	for(i=0; i<MAX_LOOK_UP; i++)
 	{
 		this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask[i], this->iHeight*this->iWidth*sizeof(uchar));
 		this->checkCudaError("Allocate memory", "chromeGeneratedMask child");
+		assert(this->cudaStatus==cudaSuccess);
 
 		this->cudaStatus = cudaMalloc((void**)&this->lookupTable[i], this->iHeight*this->iWidth*sizeof(uchar));
 		this->checkCudaError("Allocate memory", "LookupTable child");
+		assert(this->cudaStatus==cudaSuccess);
 	}
+
 }
 
 void ChrommaKey::cudaCleanup()
@@ -288,6 +294,8 @@ void ChrommaKey::cudaCleanup()
 
 	this->cudaStatus = cudaFree(this->lookupTable);
 	this->checkCudaError("Free memory", "LookupTable");
+
+	std::cout<<"[Info]: Finished initializing cuda variables\n"<<std::endl;
 }
 
 void ChrommaKey::generateChrommaMask()
@@ -335,6 +343,8 @@ void ChrommaKey::erodeAndDilate(int iErode, int iDilate)
 
 void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings ws)
 {
+	// get the snaphost
+	this->video = this->proc->getSnapShot();
 //	if(!init)return;
 	if(!clickEn)return;
 
@@ -346,11 +356,12 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 
 		const dim3 block(16, 16);
 		const dim3 grid(iDivUp((ws.m_iOuter_Diam+ ws.m_iUV_Diam)*2, block.x), iDivUp((ws.m_iOuter_Diam + ws.m_iUV_Diam)*2, block.y));
+
 		uchar* ptrLookUpDataToUse = this->lookupTable[0];
-
-			if(pb)
-				ptrLookUpDataToUse = this->lookupTable[1];
-
+		if(pb)
+		{
+			ptrLookUpDataToUse = this->lookupTable[1];
+		}
 
 		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic/2); x++)
 		{
@@ -365,14 +376,17 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 						ws.m_iUV_Diam*2,
 						ws.m_iLum_Diam,
 						ScalingValue,
-						maxRecSize);
+						maxRecSize
+						);
 			}
 		}
 
-
 		this->cudaStatus = cudaDeviceSynchronize();
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
+		assert(this->cudaStatus==cudaSuccess);
 		this->mtx->unlock();
+
+		std::cout<<"[info]: LookupTable updated successfully"<<std::endl;
 	}
 	return;
 }

@@ -51,6 +51,7 @@ private:
 	int iDelayFrames;
 	uchar2* yPackedCudaVideo, *yPackedCudaFill, *yPackedCudaKey;
 	uchar2* yUnpackedCudaVideo, *yUnpackedCudaFill, *yUnpackedCudaKey;
+	uchar2* videoSnapshot; // this variable will store a frame frozen in time.
 	uchar3* cudaRGB;
 	VideoIn* deckLinkInput;
 
@@ -113,9 +114,11 @@ public:
 		this->cudaCleanup();
 	}
 	// Initialize all the cuda memory (Allocate and Set if necessary)
-	void sendDataTo(); // send packed key and fill to cuda.
+	void sendDataTo(bool); // send packed key and fill to cuda.
 	void unpackYUV(); // launch kernels to unpack yuv data and place in buffers above
 	void snapshot(cv::cuda::GpuMat* RGBData);
+	uchar2* getSnapShot();
+	void takeSnapShot();
 	VideoIn* getVideoIn(){return this->deckLinkInput;}
 	uchar2* getVideo(){return this->yUnpackedCudaVideo;}
 	uchar2* getKey(){return this->yUnpackedCudaKey;}
@@ -149,9 +152,11 @@ public:
 		this->iWidth = this->proc->getHeight();
 		this->iHeight = this->proc->getWidth();
 		this->frameSizeUnpacked = this->proc->getFrameSize();
-		this->video = this->proc->getVideo();
+		this->video = this->proc->getSnapShot();
 		this->key = this->proc->getVideo();
 		this->fill = this->proc->getFill();
+		std::cout<<"[info]: Finished initializing ChrommaKey...."<<std::endl;
+		this->cudaInit();
 	}
 
 	void cudaInit() override;

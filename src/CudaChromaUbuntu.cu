@@ -50,6 +50,7 @@
 #include "YUVUChroma.cuh"
 #include <iostream>       // std::cout
 #include "PosisionUpdateUDP.h"
+#include <thread>
 
 #define MAX_PATH 260
 
@@ -431,10 +432,12 @@ struct ThreadData
 		bUpdateRGB_Preview = false;
 		RGB_Output_Cuda=0;
 		MouseData1=0;
+		p = nullptr;
 	}
 	cuda::GpuMat *RGB_Output_Cuda;
 	bool bUpdateRGB_Preview;
 	MouseData *MouseData1;
+	Processor *p;
 };
 
 template<typename T>
@@ -556,11 +559,14 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 
 	VideoIn decklink_video_in; // Input video
+	ptrThreadData->p = new Processor(&decklink_video_in);
 
-	Processor p(&decklink_video_in);
+	Processor* p = ptrThreadData->p;
+//	Processor p(&decklink_video_in);
 
-	p.setMutex(&mtxScreenCard);
-
+	mtxScreenCard.lock();
+	p->setMutex(&mtxScreenCard);
+	mtxScreenCard.unlock();
 //	p.sendDataTo();
 //	VideoIn* decklink_video_in_ptr = p.getVideoIn();
 //	VideoIn decklink_video_in
@@ -607,21 +613,20 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 		}
 		else
 		{
-//			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
-//			RGB_Output_Cuda.step = 5760;
-//			p.run();
-//			p.snapshot(&RGB_Output_Cuda);
-//
-//			cv::Mat cpuPrev;
-//
-//			try{
-//				RGB_Output_Cuda.download(cpuPrev);
-//				imshow("Demo", cpuPrev);
-//
-//			}catch(cv::Exception& e){
-//				std::cerr<<e.err<<std::endl;
-//			}
-//			continue;
+			RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
+			RGB_Output_Cuda.step = 5760;
+			p->run();
+			p->snapshot(&RGB_Output_Cuda);
+			cv::Mat cpuPrev;
+
+			try{
+				RGB_Output_Cuda.download(cpuPrev);
+				imshow("Demo", cpuPrev);
+
+			}catch(cv::Exception& e){
+				std::cerr<<e.err<<std::endl;
+			}
+			continue;
 //			p.sendDataTo();
 			decklink_video_in.WaitForFrames(iDelayFrames);
 		}
@@ -1018,14 +1023,18 @@ int main()
 
 		pthread_t threads;
 		int rc;
+
 		// send output renderer to a separate thread
 		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
+		assert((rc==0));
 
-		if (rc)
-		{
-			cout << "[Error]: Unable to create Output Renderer thread! : " << rc << endl;
-			exit(-1);
-		}
+////		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//		while(myThreadData.p == nullptr);
+//
+//		assert((myThreadData.p!=nullptr));
+//
+//		ChrommaKey ck(myThreadData.p);
+
 
 		initPosUDPData();
 		Mat RGB__Draw;
@@ -1285,6 +1294,7 @@ int main()
 //					imshow("Frame Info", RGB_FrameInfo_Cuda);
 			}
 
+//			ck.updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
 			UpdateLookupFromMouse();
 			UpdateKeyState();
 
