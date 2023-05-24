@@ -107,28 +107,27 @@ __global__ void yuyv_Unpacked_GenerateMask(uint4* , uchar*, uchar* , int , int, 
 __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* , uchar* , int , int , int , int ,int , int ,float ,int );//
 
 
-void PrepareYoloData(bool bSnapShot,float fnms);
-void SetOnAirLookup(int iLookup);
-bool Checkifnotoverplayer(cv::Rect TestRect);
-void DrawSnapShotDetections(Mat *DrawingMat,bool bTrackReset);
-void DrawSnapShotDetections_clean(Mat *DrawingMat,bool bTrackReset);
-void DrawSnapShotDetectionsPTR(Mat *DrawingMat,bool bTrackReset);
-void Launch_yuyv10PackedToyuyvUnpacked(int RowLength,bool bSnapShot,int iFrameSizeUnpacked, cuda::GpuMat *RGB_Output_Cuda,int iBot,int iTop,bool bAutoTrain);
-void Launch_yuyv_Unpacked_GenerateMask(int iAvgCutOff,int iUse,bool bAutoTrain);
-void Launch_yuyv_Unpacked_GenerateMask_yolo(int iAvgCutOff,int iUse,bool bAutoTrain);
-void Launch_yuyv_Unpacked_GenerateMask_yolo_seg(int iAvgCutOff,int iUse,bool bAutoTrain,float *segmented_mask);
+void PrepareYoloData(bool ,float );
+void SetOnAirLookup(int );
+bool Checkifnotoverplayer(cv::Rect );
+void DrawSnapShotDetections(Mat *,bool );
+void DrawSnapShotDetections_clean(Mat *,bool );
+void DrawSnapShotDetectionsPTR(Mat *,bool );
+void Launch_yuyv10PackedToyuyvUnpacked(int ,bool ,int , cuda::GpuMat *,int ,int ,bool );
+void Launch_yuyv_Unpacked_GenerateMask(int ,int ,bool );
+void Launch_yuyv_Unpacked_GenerateMask_yolo(int ,int ,bool );
+void Launch_yuyv_Unpacked_GenerateMask_yolo_seg(int ,int ,bool ,float *);
 
 void CreateYoloMask();
-//void Launch_yuyv_Unpacked_UnpackedComBineData(int iBlendPos, int RowLength, double3 Parabolic,bool Bypass,bool m_DisableParabolicKeying, unsigned long int iCutOff);
-void Launch_yuyv_Unpacked_UnpackedComBineData(int *iBlendPos0, int *iBlendPos1, int *iBlendPos2, int RowLength, double4 *Parabolic0, double4 *Parabolic1, double4 *Parabolic2, bool Bypass, unsigned long int iCutOff, unsigned long int iCutOff0, unsigned long int iCutOff1, unsigned long int iCutOff2,int bOutPutSnap);
-void Launch_yuyvDilateAndErode(int iDilate, int iErode, int iUse);
-void Launch_yuyv_Unpacked_ClearMask(int iUse);
-void Launch_UpdateLookupFrom_XY_Posision(int istartX, int iStartY, int iEndX, int iEndY, int iUV_Diameter, int iLum_Diameter, int iOuter_Diameter,int iMaxKeyVal,bool bPaintItBack);
-void Launch_UpdateLookupFrom_XY_Posision_Erase(int istartX, int iStartY, int iEndX, int iEndY, int iErase_Diameter, int iErase_Lum_Diameter,bool bPaintItBack);
-void Launch_Frame_Info(cuda::GpuMat *RGB_FrameInfo);
-void Launch_Frame_Info_SccoerBall(cuda::GpuMat *RGB_FrameInfo);
+void Launch_yuyv_Unpacked_UnpackedComBineData(int *, int *, int *, int , double4 *, double4 *, double4 *, bool , unsigned long int , unsigned long int , unsigned long int , unsigned long int ,int );
+void Launch_yuyvDilateAndErode(int , int , int );
+void Launch_yuyv_Unpacked_ClearMask(int );
+void Launch_UpdateLookupFrom_XY_Posision(int , int , int , int , int , int , int ,int ,bool );
+void Launch_UpdateLookupFrom_XY_Posision_Erase(int , int , int , int , int , int ,bool );
+void Launch_Frame_Info(cuda::GpuMat *);
+void Launch_Frame_Info_SccoerBall(cuda::GpuMat *);
 void Launch_UpdateLookup_Test();
-void UpdateLookup(int iStartX, int iEndX, int iSartY, int iEndY,bool bTrain);
+void UpdateLookup(int iStartX, int , int , int ,bool );
 
 	
 

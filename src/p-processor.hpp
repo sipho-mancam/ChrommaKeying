@@ -155,8 +155,10 @@ public:
 		this->video = this->proc->getSnapShot();
 		this->key = this->proc->getVideo();
 		this->fill = this->proc->getFill();
-		std::cout<<"[info]: Finished initializing ChrommaKey...."<<std::endl;
+		this->mtx = this->proc->getMutex();
+
 		this->cudaInit();
+		std::cout<<"[info]: Finished initializing ChrommaKey...."<<std::endl;
 	}
 
 	void cudaInit() override;
@@ -164,6 +166,7 @@ public:
 	void generateChrommaMask();
 	void erodeAndDilate(int, int);
 	void updateLookup(bool init , bool clickEn, MouseData md, WindowSettings ws);
+	void maskPreview(cv::cuda::GpuMat& mask, int index=0);
 
 
 	~ChrommaKey()

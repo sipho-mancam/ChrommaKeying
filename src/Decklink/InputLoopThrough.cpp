@@ -451,11 +451,12 @@ void processVideo(std::shared_ptr<LoopThroughVideoFrame>& videoFrame, com_ptr<De
 	{
 		memcpy(data,outdata,threaddata->m_sizeOfFrame);
 		free(outdata);
-	}else
-	{
-		cout << "empty out" << endl;
-
 	}
+//	else
+//	{
+//		cout << "empty out" << endl;
+//
+//	}
 
 	//int sizeOfFrame,int iFrameSizeUnpacked,int RowLength,void * data,int iWidth,int iHeight
 

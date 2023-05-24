@@ -17,7 +17,7 @@ void PipelineObj::checkCudaError(std::string action, std::string loc)
 {
 	if(this->cudaStatus != cudaSuccess)
 	{
-		std::cout<<"[Error]: Failed to "<< action<<" to"<< loc <<" \n"
+		std::cerr<<"[Error]: Failed to "<< action<<" to"<< loc <<" \n"
 				<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
 	}
 }
@@ -195,7 +195,7 @@ void Processor::snapshot(cv::cuda::GpuMat* RGBData)
 	cudaFree(video2);
 
 	if(this->mtx)
-			this->mtx->unlock();
+		this->mtx->unlock();
 }
 
 void Processor::takeSnapShot()
@@ -254,15 +254,10 @@ void Processor::run()
 
 void ChrommaKey::cudaInit()
 {
+	this->lookupTable = new uchar*[MAX_LOOK_UP];
+	this->chromaGeneratedMask = new uchar*[MAX_LOOK_UP];
+
 	int i = 0;
-	this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask, 3*sizeof(uchar*));
-	this->checkCudaError("Allocate memory", "chromeGeneratedMask");
-	assert(this->cudaStatus==cudaSuccess);
-
-	this->cudaStatus = cudaMalloc((void**)&this->lookupTable, 3*sizeof(uchar*));
-	this->checkCudaError("Allocate memory", "LookupTable");
-	assert(this->cudaStatus==cudaSuccess);
-
 	for(i=0; i<MAX_LOOK_UP; i++)
 	{
 		this->cudaStatus = cudaMalloc((void**)&this->chromaGeneratedMask[i], this->iHeight*this->iWidth*sizeof(uchar));
@@ -300,6 +295,9 @@ void ChrommaKey::cudaCleanup()
 
 void ChrommaKey::generateChrommaMask()
 {
+	this->mtx->lock();
+	this->video = this->proc->getSnapShot();
+
 	const int dstAlignedWidth = this->iWidth;
 	const int srcAlignedWidth = this->iWidth/2;
 	const dim3 block(16, 16);
@@ -319,6 +317,15 @@ void ChrommaKey::generateChrommaMask()
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("synchronize host", "yuyvGenerateMask");
 	assert((this->cudaStatus == cudaSuccess));
+	this->mtx->unlock();
+}
+
+void ChrommaKey::maskPreview( cv::cuda::GpuMat& mask , int index)
+{
+	this->generateChrommaMask();
+	// do some thread safety here...
+	this->cudaStatus = cudaMemcpy(mask.data, this->chromaGeneratedMask[index], this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", "mask.data");
 
 }
 
@@ -343,6 +350,10 @@ void ChrommaKey::erodeAndDilate(int iErode, int iDilate)
 
 void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings ws)
 {
+
+	std::cout<<"[info]: Update Lookup started"<<std::endl;
+//
+
 	// get the snaphost
 	this->video = this->proc->getSnapShot();
 //	if(!init)return;
@@ -350,7 +361,7 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 
 	if (md.bHandleLDown)
 	{
-		this->mtx->lock();
+
 		int maxRecSize = 200;
 		float ScalingValue = maxRecSize*1.0/ws.m_iOuter_Diam*1.0;
 
@@ -362,6 +373,9 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 		{
 			ptrLookUpDataToUse = this->lookupTable[1];
 		}
+
+		this->mtx->lock();
+		std::cout<<"[info]: Thread locked ..."<<std::endl;
 
 		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic/2); x++)
 		{
@@ -381,12 +395,15 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 			}
 		}
 
+
 		this->cudaStatus = cudaDeviceSynchronize();
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
+
 		this->mtx->unlock();
 
-		std::cout<<"[info]: LookupTable updated successfully"<<std::endl;
+
 	}
-	return;
+	std::cout<<"[info]: LookupTable updated successfully"<<std::endl;
+//
 }

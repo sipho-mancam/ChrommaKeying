@@ -556,7 +556,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	unsigned int Max_duration=0;
 
 
-
+	mtxScreenCard.lock();
 
 	VideoIn decklink_video_in; // Input video
 	ptrThreadData->p = new Processor(&decklink_video_in);
@@ -564,7 +564,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	Processor* p = ptrThreadData->p;
 //	Processor p(&decklink_video_in);
 
-	mtxScreenCard.lock();
+
 	p->setMutex(&mtxScreenCard);
 	mtxScreenCard.unlock();
 //	p.sendDataTo();
@@ -626,7 +626,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 			}catch(cv::Exception& e){
 				std::cerr<<e.err<<std::endl;
 			}
-			continue;
+//			continue;
 //			p.sendDataTo();
 			decklink_video_in.WaitForFrames(iDelayFrames);
 		}
@@ -922,7 +922,7 @@ void UpdateLookupFromMouse()
 
 					Launch_UpdateLookupFrom_XY_Posision(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
 							MouseData1.iXDownDynamic, MouseData1.iYDownDynamic, 1, 10, 5, 200,bDoPaintBack);
-					std::cout<<"I execute"<<std::endl;
+//					std::cout<<"I execute"<<std::endl;
 					mtxScreenCard.unlock();
 				}
 				return;
@@ -1009,6 +1009,11 @@ int main()
 		RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
 		RGB_Output_Cuda.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
 
+		cuda::GpuMat mask_test;
+		mask_test.create(1080, 1920, CV_8UC3); // fullHD image mat
+		mask_test.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
+
+
 		cuda::GpuMat RGB_FrameInfo_Cuda;
 		RGB_FrameInfo_Cuda.create(1024, 1024, CV_8UC3);
 		RGB_FrameInfo_Cuda.step = 1024 * 3;
@@ -1028,13 +1033,15 @@ int main()
 		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
 		assert((rc==0));
 
-////		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//		while(myThreadData.p == nullptr);
-//
+////	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//		mtxScreenCard.lock();
+		while(myThreadData.p == nullptr);
+		mtxScreenCard.lock();
 //		assert((myThreadData.p!=nullptr));
 //
-//		ChrommaKey ck(myThreadData.p);
+		ChrommaKey* ck = new ChrommaKey(myThreadData.p);
 
+		mtxScreenCard.unlock();
 
 		initPosUDPData();
 		Mat RGB__Draw;
@@ -1137,6 +1144,14 @@ int main()
 				bTakeMask = true;
 				mtxScreenCard.unlock();
 
+				ck->maskPreview(mask_test, 0);
+
+				cv::Mat prev;
+
+				mask_test.download(prev);
+
+				imshow("CK Mask", mask_test);
+
 				setWindowTitle("RGB Output", "Chroma");
 				setWindowTitle("Settings","Settings Chroma");
 			}
@@ -1209,14 +1224,14 @@ int main()
 				RGB_saving=RGB_Output.clone();
 				iFrameIndex++;
 
-				if(0) // What's this?
+				if(0)
 				if(iFrameIndex==50)
 				{
 					iFrameIndex=0;
 					std::string FileAndPathName;
 					std::time_t result = std::time(nullptr);
 					std::string  FileName = toString(result);
-					FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
+					FileAndPathName = "/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
 
 					std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
 					t1.join();
@@ -1233,21 +1248,22 @@ int main()
 					writeframe(RGB_Output.clone()); // save frame
 				}
 
-				bTrackReset=false;
+				bTrackReset = false;
 				DrawCameraData(&RGB_Output);
 				bstart = true;
 				mtxScreenCard.unlock();
 			}
 			if (bstart)
 			{
-				RGB__Draw = RGB_Output.clone();
+				RGB__Draw = RGB_Output.clone();// output image ...
 				cv::Rect myROI(
 							MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
 							MouseData1.iXDownDynamic - MouseData1.iXUpDynamic,
 							MouseData1.iYDownDynamic - MouseData1.iYUpDynamic
 							);
 				if((0 <= myROI.x && 0 <= myROI.width && myROI.x + myROI.width <= RGB__Draw.cols &&
-					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows)){
+					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows))
+				{
 
 					MouseMutex.lock();
 					Mat RGB__Draw_Small = RGB__Draw(myROI);
@@ -1291,10 +1307,10 @@ int main()
 			if (GetAsyncKeyState('i'))
 			{
 				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-//					imshow("Frame Info", RGB_FrameInfo_Cuda);
+				imshow("Frame Info", RGB_FrameInfo_Cuda);
 			}
 
-//			ck.updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
+			ck->updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
 			UpdateLookupFromMouse();
 			UpdateKeyState();
 
@@ -1342,10 +1358,7 @@ int main()
 	// tracing tools such as Nsight and Visual Profiler to show complete traces.
 	std::cout << "End Cuda" << std::endl;
 	cudaStatus = cudaDeviceReset();
-	if (cudaStatus != cudaSuccess)
-	{
-		fprintf(stderr, "cudaDeviceReset failed!");
-		return 1;
-	}
+	assert(cudaStatus == cudaSuccess);
+
 	return 0;
 }
