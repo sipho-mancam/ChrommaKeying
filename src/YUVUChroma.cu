@@ -335,10 +335,10 @@ inline __device__  bool GetBit(double4 pos, uchar* LookupTable)
 
 inline __device__  uchar GetBit3(double pos, uchar* LookupTable)
 {
-	if (0 > pos)
+	if (pos < 0)
 		return 255;
 
-	if (CUDA_LOOKUP_SIZE < pos)
+	if (pos > CUDA_LOOKUP_SIZE)
 		return 255;
 
 	int64 GetByteInt = (int64)pos;
@@ -1525,15 +1525,18 @@ __global__ void yuyv_Unpacked_GenerateMask(uint4* src_Video_Unapc, uchar *maskDo
 		return;
 
 	uint4 *macroPxVideo;
-	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
 	uint4 macroPxVideoReal;
+
+	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
+
 	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
 	macroPxVideoReal = *macroPxVideo;
+
 	double3 val1 = make_double3(macroPxVideoReal.x, macroPxVideoReal.z, macroPxVideoReal.y);
 	double bitpos1 = GetBitPos3(val1);
 	double3 val2 = make_double3(macroPxVideoReal.x, macroPxVideoReal.z, macroPxVideoReal.w);
 	double bitpos2 = GetBitPos3(val2);
-	maskDownload[y * dstAlignedWidth + (x * 2) + 0] = GetBit3(bitpos1, LookupTable);
+	maskDownload[y * dstAlignedWidth + (x * 2) + 0] = GetBit3(bitpos1,LookupTable);
 	maskDownload[y * dstAlignedWidth + (x * 2) + 1] = GetBit3(bitpos2, LookupTable);
 }
 __global__ void yuyv_Unpacked_GenerateMask_yolo(uint4* src_Video_Unapc, uchar *maskDownload, uchar* LookupTable, int width, int height, int srcAlignedWidth, int dstAlignedWidth,int iAvgCutOff,uchar *yolomask)
@@ -2721,6 +2724,8 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent(uint4* src_Video_Unapc, ui
 __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_Unapc, uchar* LookupTable, int PixelPosX, int PixelPosY, int srcAlignedWidth, int iOuter_Diameter,int iUV_Diameter, int iLum_Diameter,float dSScaling,int iMaxKeyVal)//
 {
 
+
+
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -2729,7 +2734,7 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 
 	uint4 *macroPxVideo;
 	macroPxVideo = &src_Video_Unapc[PixelPosY * srcAlignedWidth + PixelPosX];
-
+	printf("%.2f\n", *macroPxVideo);
 	//printf("%d %d %d %d\n",macroPxVideo->x,macroPxVideo->z,macroPxVideo->y);
 	float fCenter = (iOuter_Diameter + iUV_Diameter) / 2;
 	float fx = x - fCenter;

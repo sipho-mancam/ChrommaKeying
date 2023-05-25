@@ -139,6 +139,7 @@ private:
 	uchar**  chromaGeneratedMask;
 	uchar**  lookupTable;
 	uchar2* video, *key, *fill;
+	uchar* maskDown;
 
 
 public:

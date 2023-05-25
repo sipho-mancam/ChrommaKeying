@@ -17,7 +17,7 @@ void PipelineObj::checkCudaError(std::string action, std::string loc)
 {
 	if(this->cudaStatus != cudaSuccess)
 	{
-		std::cerr<<"[Error]: Failed to "<< action<<" to"<< loc <<" \n"
+		std::cerr<<"[Error]: Failed to "<< action<<" to "<< loc <<" \n"
 				<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
 	}
 }
@@ -257,6 +257,9 @@ void ChrommaKey::cudaInit()
 	this->lookupTable = new uchar*[MAX_LOOK_UP];
 	this->chromaGeneratedMask = new uchar*[MAX_LOOK_UP];
 
+	this->cudaStatus = cudaMalloc(&this->maskDown, this->iHeight*this->iWidth*sizeof(uchar));
+	this->checkCudaError("allocate memory", "maskDown");
+
 	int i = 0;
 	for(i=0; i<MAX_LOOK_UP; i++)
 	{
@@ -264,7 +267,7 @@ void ChrommaKey::cudaInit()
 		this->checkCudaError("Allocate memory", "chromeGeneratedMask child");
 		assert(this->cudaStatus==cudaSuccess);
 
-		this->cudaStatus = cudaMalloc((void**)&this->lookupTable[i], this->iHeight*this->iWidth*sizeof(uchar));
+		this->cudaStatus = cudaMalloc((void**)&this->lookupTable[i], CUDA_LOOKUP_SIZE);
 		this->checkCudaError("Allocate memory", "LookupTable child");
 		assert(this->cudaStatus==cudaSuccess);
 	}
@@ -324,9 +327,13 @@ void ChrommaKey::maskPreview( cv::cuda::GpuMat& mask , int index)
 {
 	this->generateChrommaMask();
 	// do some thread safety here...
-	this->cudaStatus = cudaMemcpy(mask.data, this->chromaGeneratedMask[index], this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
-	this->checkCudaError("copy memory", "mask.data");
 
+	assert(this->cudaStatus==cudaSuccess);
+
+	this->cudaStatus = cudaMemcpy(maskDown, this->chromaGeneratedMask[0], this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", "maskDown");
+
+	mask.data=maskDown;
 }
 
 void ChrommaKey::erodeAndDilate(int iErode, int iDilate)
@@ -366,9 +373,13 @@ void ChrommaKey::updateLookup(bool clickEn,bool pb, MouseData md, WindowSettings
 		float ScalingValue = maxRecSize*1.0/ws.m_iOuter_Diam*1.0;
 
 		const dim3 block(16, 16);
-		const dim3 grid(iDivUp((ws.m_iOuter_Diam+ ws.m_iUV_Diam)*2, block.x), iDivUp((ws.m_iOuter_Diam + ws.m_iUV_Diam)*2, block.y));
+		const dim3 grid(
+				iDivUp((ws.m_iOuter_Diam+ws.m_iUV_Diam)*2, block.x),
+				iDivUp((ws.m_iOuter_Diam+ws.m_iUV_Diam)*2, block.y)
+				);
 
 		uchar* ptrLookUpDataToUse = this->lookupTable[0];
+
 		if(pb)
 		{
 			ptrLookUpDataToUse = this->lookupTable[1];

@@ -1009,9 +1009,8 @@ int main()
 		RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
 		RGB_Output_Cuda.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
 
-		cuda::GpuMat mask_test;
-		mask_test.create(1080, 1920, CV_8UC3); // fullHD image mat
-		mask_test.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
+		cuda::GpuMat mask_test(1080, 1920, CV_8UC1);
+		// step between the pixels -> allocates 3 bytes extra for every pixel
 
 
 		cuda::GpuMat RGB_FrameInfo_Cuda;
@@ -1033,7 +1032,7 @@ int main()
 		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
 		assert((rc==0));
 
-////	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 //		mtxScreenCard.lock();
 		while(myThreadData.p == nullptr);
 		mtxScreenCard.lock();
@@ -1143,14 +1142,6 @@ int main()
 				mtxScreenCard.lock();
 				bTakeMask = true;
 				mtxScreenCard.unlock();
-
-				ck->maskPreview(mask_test, 0);
-
-				cv::Mat prev;
-
-				mask_test.download(prev);
-
-				imshow("CK Mask", mask_test);
 
 				setWindowTitle("RGB Output", "Chroma");
 				setWindowTitle("Settings","Settings Chroma");
@@ -1311,6 +1302,18 @@ int main()
 			}
 
 			ck->updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
+
+			if(bTakeMask)
+			{
+				ck->maskPreview(mask_test, 0);
+
+				cv::Mat prev;
+
+				//mask_test.download(prev);
+
+				imshow("CK Mask", prev);
+			}
+
 			UpdateLookupFromMouse();
 			UpdateKeyState();
 
