@@ -9,6 +9,7 @@
 #define INPUTLOOPTHROUGH_H_
 #include <mutex>
 #include "pevents.h"
+#include <list>
 void EndLoop();
 using namespace neosmart;
 

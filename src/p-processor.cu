@@ -118,6 +118,7 @@ void Processor::sendDataTo(bool pop = true)
 void Processor::unpackYUV()
 {
 	const dim3 block(16, 16);
+	std::cout<<this->deckLinkInput->m_RowLength;
 	const dim3 grid(iDivUp(this->deckLinkInput->m_RowLength/SIZE_ULONG4_CUDA, block.x), iDivUp(this->iHeight, block.y));
 	const int srcAlignedWidth = this->deckLinkInput->m_RowLength/SIZE_ULONG4_CUDA;
 	const int dstAlignedWidth = this->iWidth/2;

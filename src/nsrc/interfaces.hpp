@@ -21,10 +21,9 @@
 class IPipeline
 {
 protected:
-
 	uint4* video;
 	uint4* fill;
-	uint4* key;
+	uint4* key, *augVideo;
 	cudaStream_t stream;
 	cudaError_t cudaStatus;
 	long int frameSizePacked, frameSizeUnpacked;
@@ -33,10 +32,12 @@ protected:
 
 public:
 	IPipeline();
+	IPipeline(IPipeline*);
 	virtual ~IPipeline() = default;
 	virtual void create() = 0;
 	virtual void update() = 0;
 	virtual void output() = 0;
+	virtual void init() = 0;
 
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
@@ -44,11 +45,130 @@ public:
 	std::mutex* getMutex(){return this->mtx;}
 	long int getFrameSize(){return this->frameSizeUnpacked;}
 	long int getPFrameSize(){return this->frameSizePacked;}
+	int getWidth(){return this->iWidth;}
+	int getHeight(){return this->iHeight;}
+	cudaStream_t getStream(){return this->stream;}
+
+	void setMutex(std::mutex* m){this->mtx = m;}
+	void checkCudaError(std::string action, std::string loc);
 
 };
 
 class IMask: public IPipeline
 {
+protected:
+	bool mask;
+	uchar* maskBuffer;
+public:
+	IMask(IPipeline *obj):IPipeline(obj)
+	{
+		this->mask = false;
+		this->maskBuffer = nullptr;
+	}
+	virtual void erode(int) = 0;
+	virtual void dilate(int) = 0;
+	virtual ~IMask() = default;
+	virtual bool isMask() = 0;
+	void init() override;
+};
+
+
+class Preview
+{
+public:
+	Preview()
+	{
+
+	}
+
+};
+
+/****
+ * Video is received as yuv from decklink and unpacked to yuyv
+ * rgbVideo contains the received video rgbOutput
+ *
+ */
+
+class Input : public IPipeline
+{
+private:
+	VideoIn* input;
+	bool in;
+	uchar2* pVideo, *pKey, *pFill;
+
+public:
+	Input(VideoIn* i);
+	void init() override; // initialize cuda variables
+	bool isInput(){return in;}
+	void run(); // receive video and copy it to gpu
+};
+
+
+
+class Preprocessor: public IPipeline
+{
+private:
+	uchar3* rgbVideo;
+	uchar2* pVideo, *pKey, *pFill;
+
+
+public:
+	Preprocessor(IPipeline* , uchar2* video, uchar2*key, uchar2*fill);
+	Preprocessor(uchar2* uvideo, uchar2* ukey, uchar2* fill);
+	void unpack(); // unpack yuv to yuyv
+	void convertToRGB(); // converts from yuyv to RGB
+	void create() override; // Some more pre-processing logic
+	void init() override;
+};
+
+
+class SnapShot: public IPipeline
+{
+private:
+	uint4* videoSnapShot;
+	bool taken;
+public:
+	SnapShot(IPipeline* obj): IPipeline(obj)
+	{
+		this->videoSnapShot=nullptr;
+		this->cudaStatus = cudaMalloc((void**)&videoSnapShot, this->frameSizeUnpacked);
+		assert((this->cudaStatus==cudaSuccess));
+		taken = false;
+	}
+
+	void takeSnapShot()
+	{
+		taken = false;
+		this->cudaStatus = cudaMemcpyAsync(this->videoSnapShot, this->augVideo, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice, NULL);
+		assert((this->cudaStatus==cudaSuccess));
+		taken  = true;
+	}
+
+	bool isSnaped(){return this->taken;}
+	uint4* getSnapShot(){return this->videoSnapShot;} // this will return the last snapshot taken
+};
+
+
+class LookupTable: IPipeline
+{
+private:
+	uchar* lookupBuffer;
+	bool loaded;
+
+public:
+
+	LookupTable(IPipeline *obj);
+	void create() override;
+	void update(bool init , bool clickEn, MouseData md, WindowSettings ws);
+	uchar* output(){return this->lookupBuffer;}
+};
+
+
+class ChrommaMask: public IMask
+{
+
+public:
+	ChrommaMask(IPipeline *obj);
 
 };
 
