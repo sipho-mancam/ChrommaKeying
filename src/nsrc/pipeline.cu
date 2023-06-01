@@ -35,6 +35,7 @@ IPipeline::IPipeline()
 
 IPipeline::IPipeline(IPipeline* pObj)
 {
+	assert(pObj!=nullptr);
 	this->fill = pObj->fill;
 	this->key = pObj->key;
 	this->video = pObj->video;
@@ -53,7 +54,8 @@ void IPipeline::checkCudaError(std::string action, std::string loc)
 	if(this->cudaStatus != cudaSuccess)
 	{
 		std::cerr<<"[Error]: Failed to "<< action<<" to "<< loc <<" \n"
-				<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)<<std::endl;
+				<<"[Error]: "<<cudaGetErrorString(this->cudaStatus)
+		<<std::endl;
 	}
 }
 
@@ -157,7 +159,6 @@ void Preprocessor::init()
 	this->cudaStatus = cudaMalloc((void**)&this->rgbVideo, this->iHeight*this->iWidth*sizeof(uchar3));
 	this->checkCudaError("Allocate Memory", " RGB Video buffer");
 	assert((this->cudaStatus == cudaSuccess));
-
 }
 
 void Preprocessor::unpack()
@@ -236,6 +237,7 @@ void LookupTable::update(bool init, bool clickEn, MouseData md, WindowSettings w
 
 	if (md.bHandleLDown)
 	{
+		this->loaded = false;
 		int maxRecSize = 200;
 		float ScalingValue = maxRecSize*1.0/ws.m_iOuter_Diam*1.0;
 
@@ -271,15 +273,105 @@ void LookupTable::update(bool init, bool clickEn, MouseData md, WindowSettings w
 		this->cudaStatus = cudaDeviceSynchronize();
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
+		this->loaded = true;
 		this->mtx->unlock();
 	}
 //	std::cout<<"[info]: LookupTable updated successfully"<<std::endl;
 }
 
+void IMask::init()
+{
+	this->cudaStatus = cudaMalloc((void**)this->maskBuffer, this->iHeight*this->iWidth*sizeof(uchar));
+	assert(this->cudaStatus==cudaSuccess);
+}
 
-ChrommaMask::ChrommaMask(IPipeline* obj): IMask(obj)
+void IMask::erode(int size)
+{
+	cv::cuda::GpuMat chrommaMaskInput;
+	cv::cuda::GpuMat chrommaMaskOutput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
+	chrommaMaskOutput.step=this->iWidth*2;
+
+	// erode output mask
+	int an = size;
+	cv::Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, chrommaMaskInput.type(), element);
+	erodeFilter->apply(chrommaMaskInput, chrommaMaskOutput);
+}
+
+void IMask::dilate(int size)
+{
+	cv::cuda::GpuMat chrommaMaskInput;
+	cv::cuda::GpuMat chrommaMaskOutput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
+	chrommaMaskOutput.step=this->iWidth*2;
+
+	// Dilate the output mask
+	int an = size;
+	cv::Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, chrommaMaskInput.type(), element);
+	erodeFilter2->apply(chrommaMaskInput, chrommaMaskOutput);
+}
+
+ChrommaMask::ChrommaMask(IPipeline* obj, LookupTable* t): IMask(obj)
+{
+	this->table = t;
+}
+
+void ChrommaMask::create()
+{
+	if(!table->isLoaded())return;
+	this->mtx->lock();
+	this->mask = false;
+	const int dstAlignedWidth = this->iWidth;
+	const int srcAlignedWidth = this->iWidth/2;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+
+	yuyv_Unpacked_GenerateMask <<<grid, block, 0, this->stream>>> (
+			(uint4*)this->augVideo,
+			this->maskBuffer,
+			this->table->output(),
+			this->iWidth,
+			this->iHeight,
+			srcAlignedWidth,
+			dstAlignedWidth,
+			0
+			);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize host", "yuyvGenerateMask");
+	assert((this->cudaStatus == cudaSuccess));
+
+	this->mask = true;
+
+	this->mtx->unlock();
+}
+
+uchar* ChrommaMask::output()
+{
+	if(!this->mask)return nullptr;
+	this->create();
+	this->update();
+	return this->maskBuffer;
+}
+
+void YoloMask::create()
 {
 
+}
+
+uchar* YoloMask::output()
+{
+	return this->maskBuffer;
+}
+
+void Mask::create()
+{
+	// perform some mask creation here ...
+}
+
+uchar* Mask::output()
+{
+	return this->chromma->maskBuffer;
 }
 
 

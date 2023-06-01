@@ -36,7 +36,7 @@ public:
 	virtual ~IPipeline() = default;
 	virtual void create() = 0;
 	virtual void update() = 0;
-	virtual void output() = 0;
+//	virtual void output() = 0;
 	virtual void init() = 0;
 
 	uint4* getVideo(){return this->video;}
@@ -64,12 +64,14 @@ public:
 	{
 		this->mask = false;
 		this->maskBuffer = nullptr;
+		this->init();
 	}
-	virtual void erode(int) = 0;
-	virtual void dilate(int) = 0;
+	void erode(int);
+	void dilate(int);
 	virtual ~IMask() = default;
 	virtual bool isMask() = 0;
 	void init() override;
+	virtual uchar* output() = 0;
 };
 
 
@@ -149,7 +151,7 @@ public:
 };
 
 
-class LookupTable: IPipeline
+class LookupTable: public IPipeline
 {
 private:
 	uchar* lookupBuffer;
@@ -161,16 +163,57 @@ public:
 	void create() override;
 	void update(bool init , bool clickEn, MouseData md, WindowSettings ws);
 	uchar* output(){return this->lookupBuffer;}
+	bool isLoaded(){return loaded;}
 };
 
 
 class ChrommaMask: public IMask
 {
+private:
+	LookupTable* table;
+public:
+	ChrommaMask(IPipeline *obj, LookupTable* t);
+	void create() override;
+	bool isMask() {return this->mask;}
+	void update(){}
+	uchar* output() override;
+};
+
+
+class YoloMask: public IMask
+{
+public:
+	YoloMask(IPipeline *obj):IMask(obj){}
+	void create() override;
+	uchar* output() override;
+};
+
+
+class Mask: public IMask
+{
+private:
+	ChrommaMask* chromma;
+	YoloMask* yolo;
+public:
+	Mask(ChrommaMask* cm, YoloMask* y): IMask(cm)
+	{
+		this->yolo = y;
+		this->chromma = cm;
+	}
+
+	void create(); // combine chroma and yolov mask
+	uchar* output();
+};
+
+class ChrommaKey: public IPipeline
+{
+private:
+
 
 public:
-	ChrommaMask(IPipeline *obj);
 
 };
+
 
 
 
