@@ -26,7 +26,7 @@ protected:
 	uint4* key, *augVideo;
 	cudaStream_t stream;
 	cudaError_t cudaStatus;
-	long int frameSizePacked, frameSizeUnpacked;
+	long int frameSizePacked, frameSizeUnpacked, rowLength;
 	int iWidth, iHeight;
 	std::mutex* mtx;
 
@@ -34,10 +34,10 @@ public:
 	IPipeline();
 	IPipeline(IPipeline*);
 	virtual ~IPipeline() = default;
-	virtual void create() = 0;
-	virtual void update() = 0;
+	virtual void create(){}
+	virtual void update() {}
 //	virtual void output() = 0;
-	virtual void init() = 0;
+	virtual void init() {}
 
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
@@ -101,8 +101,11 @@ private:
 public:
 	Input(VideoIn* i);
 	void init() override; // initialize cuda variables
-	bool isInput(){return in;}
+	bool isOutput(){return in;}
 	void run(); // receive video and copy it to gpu
+	uchar2* getPVideo(){return this->pVideo;}
+	uchar2* getPKey(){return this->pKey;}
+	uchar2* getPFill(){return this->pFill;}
 };
 
 
@@ -121,6 +124,7 @@ public:
 	void convertToRGB(); // converts from yuyv to RGB
 	void create() override; // Some more pre-processing logic
 	void init() override;
+	void load(uchar2* pVideo, uchar2* pKey, uchar2* pFill);
 };
 
 
@@ -189,13 +193,13 @@ public:
 };
 
 
-class Mask: public IMask
+class MaskOut: public IMask
 {
 private:
 	ChrommaMask* chromma;
 	YoloMask* yolo;
 public:
-	Mask(ChrommaMask* cm, YoloMask* y): IMask(cm)
+	MaskOut(ChrommaMask* cm, YoloMask* y): IMask(cm)
 	{
 		this->yolo = y;
 		this->chromma = cm;
@@ -205,10 +209,13 @@ public:
 	uchar* output();
 };
 
-class ChrommaKey: public IPipeline
+
+
+
+
+class Keyer: public IPipeline
 {
 private:
-
 
 public:
 

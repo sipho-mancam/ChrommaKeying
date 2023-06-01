@@ -44,7 +44,8 @@
 #include <thread>         // std::this_thread::sleep_for
 #include <chrono>         // std::chrono::seconds
 #include <cuda.h>
-#include <p-processor.hpp>
+//#include <p-processor.hpp>#
+#include <interfaces.hpp>
 #include <math.h>
 #include <X11/Xlib.h>
 #include "YUVUChroma.cuh"
@@ -432,12 +433,12 @@ struct ThreadData
 		bUpdateRGB_Preview = false;
 		RGB_Output_Cuda=0;
 		MouseData1=0;
-		p = nullptr;
+//		p = nullptr;
 	}
 	cuda::GpuMat *RGB_Output_Cuda;
 	bool bUpdateRGB_Preview;
 	MouseData *MouseData1;
-	Processor *p;
+
 };
 
 template<typename T>
@@ -559,13 +560,13 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	mtxScreenCard.lock();
 
 	VideoIn decklink_video_in; // Input video
-	ptrThreadData->p = new Processor(&decklink_video_in);
+//	ptrThreadData->p = new Processor(&decklink_video_in);
 
-	Processor* p = ptrThreadData->p;
+//	Processor* p = ptrThreadData->p;
 //	Processor p(&decklink_video_in);
 
 
-	p->setMutex(&mtxScreenCard);
+//	p->setMutex(&mtxScreenCard);
 	mtxScreenCard.unlock();
 //	p.sendDataTo();
 //	VideoIn* decklink_video_in_ptr = p.getVideoIn();
@@ -996,372 +997,390 @@ int main()
 	static int iFrameIndex=0;
 	StartMonitor();
 
-	if (1)
+	VideoIn decklink;
+
+	Input *in = new Input(&decklink);
+
+	in->run();
+
+	if(in->isOutput())
 	{
-		#ifndef PREVIEW_OUTPUTRENDER
-			initCameraUDPData();
-			initOpenCVWindows();
+		Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
 
-			//InitVizSocket();
-		#endif
+		pp->unpack();
 
-		cuda::GpuMat RGB_Output_Cuda;
-		RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
-		RGB_Output_Cuda.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
-
-		cuda::GpuMat mask_test(1080, 1920, CV_8UC1);
-		// step between the pixels -> allocates 3 bytes extra for every pixel
-
-
-		cuda::GpuMat RGB_FrameInfo_Cuda;
-		RGB_FrameInfo_Cuda.create(1024, 1024, CV_8UC3);
-		RGB_FrameInfo_Cuda.step = 1024 * 3;
-
-		cuda::GpuMat RGB_FrameInfo_Cuda_FullUpdate;
-		RGB_FrameInfo_Cuda_FullUpdate.create(1024, 1024, CV_8UC3);
-		RGB_FrameInfo_Cuda_FullUpdate.step = 1024 * 3;
-
-		myThreadData.RGB_Output_Cuda = &RGB_Output_Cuda;
-		Mat MASK_L(1080, 1920, CV_8UC1, Scalar(0));
-		myThreadData.MouseData1 = &MouseData1;
-
-		pthread_t threads;
-		int rc;
-
-		// send output renderer to a separate thread
-		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
-		assert((rc==0));
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//		mtxScreenCard.lock();
-		while(myThreadData.p == nullptr);
-		mtxScreenCard.lock();
-//		assert((myThreadData.p!=nullptr));
-//
-		ChrommaKey* ck = new ChrommaKey(myThreadData.p);
-
-		mtxScreenCard.unlock();
-
-		initPosUDPData();
-		Mat RGB__Draw;
-		Mat RGB_Output;
-		Mat RGB_saving;
-		bool bstart = false;
-		bool bCapture=false;
-		static unsigned int bFrameTimer = 0;
-
-		#ifdef PREVIEW_OUTPUTRENDER
-			while (1)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			};
-		#endif
-
-		unsigned long UI_Frame_Counter=0;
-
-		while (1)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(40));
-			UI_Frame_Counter++;
-
-			if (GetAsyncKeyState('g'))
-			{
-				cudaLookUpFullKey();
-			}
-
-			if (GetAsyncKeyState('r'))//||(UI_Frame_Counter%10)==0
-			{
-				cudaLookUpReset(0);
-			}
-
-			if (GetAsyncKeyState('f'))//||(UI_Frame_Counter%10)==0
-			{
-				cudaLookUpReset(1);
-			}
-
-			if (GetAsyncKeyState('o'))
-			{
-				bClearOutPut=true;
-			}
-
-			if (GetAsyncKeyState('b'))
-			{
-				bBypass = !bBypass;
-			}
-
-			if (GetAsyncKeyState('h'))
-			{
-				printf("\n\n\n\n\n\r");
-				printf("Chroma Software Usage: \n\t[h]\t->\tShows this help message.\n\n");
-				printf("['q']\t->\tchroma snapshot update \n");
-				printf("['a']\t->\tPaintItBack snapshot update \n");
-				printf("['r']\t->\treset chroma lookup table\n");
-				printf("['f']\t->\treset PaintItBack lookup table\n");
-				printf("['o']\t->\tto clear output buffer frame list\n");
-				printf("['i']\t->\tdisplay frame info\n\n");
-				printf("[ctl+'l']\t->\tload settings\n");
-				printf("[ctl+'s']\t->\tsave settings\n");
-				printf("\n\n\n\r");
-			}
-
-			bFrameTimer++;
-
-			if (GetAsyncKeyState('w'))
-			{
-				bTakeOutput = 0;
-				bAutoTrain=true;
-
-			}
-			else
-			{
-				bAutoTrain=false;
-			}
-
-			if (GetAsyncKeyState('z'))
-			{
-				bTrackReset=true;
-			}
-			if (GetAsyncKeyState('c'))
-			{
-				bCapture=true;
-			}else
-			{
-				bCapture=false;
-			}
-
-			if (GetAsyncKeyState('q'))
-			{
-				SetOnAirLookup(0);
-				iUpdateIndex = 0;
-				UpdateSettingsWindow();
-
-				iLastCheck = 0;
-				bTakeOutput = -1;
-				bDoPaintBack=false;
-
-				mtxScreenCard.lock();
-				bTakeMask = true;
-				mtxScreenCard.unlock();
-
-				setWindowTitle("RGB Output", "Chroma");
-				setWindowTitle("Settings","Settings Chroma");
-			}
-
-			if (GetAsyncKeyState('a'))
-			{
-				SetOnAirLookup(1);
-				iUpdateIndex = 1;
-				UpdateSettingsWindow();
-				iLastCheck = 0;
-				bTakeOutput = -1;
-				bDoPaintBack=true;
-				mtxScreenCard.lock();
-				bTakeMask = true;
-				mtxScreenCard.unlock();
-
-				setWindowTitle("RGB Output", "PaintItBack");
-				setWindowTitle("Settings","PaintItBack");
-			}
-
-			if (GetAsyncKeyState(VK_F1))
-			{
-				bTakeOutput = 0;
-			}
-
-			if (GetAsyncKeyState(VK_F2))
-			{
-				bTakeOutput = 1;
-			}
-
-			if (GetAsyncKeyState(VK_F3))
-			{
-				bTakeOutput = 2;
-			}
-			if (GetAsyncKeyState(VK_F4))
-			{
-				bTakeOutput = 3;
-			}
-			if (GetAsyncKeyState(VK_F5))
-			{
-				bTakeOutput = 4;
-			}
-
-			if (GetAsyncKeyState(VK_F10))
-			{
-				CameraZero();
-			}
-
-			if (GetAsyncKeyState('s'))
-			{
-				std::string FileAndPathName;
-				std::time_t result = std::time(nullptr);
-				std::string  FileName= toString(result);
-				FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // User relative Paths
-				std::thread t1(SaveImageThread,RGB_saving.clone(),iIndex++,FileAndPathName);
-				t1.join();
-				if(iIndex==4)
-				{
-					iIndex=0;
-				}
-
-			}
-
-			if (myThreadData.bUpdateRGB_Preview)// this is updated in the outputRenderer Thread
-			{
-				myThreadData.bUpdateRGB_Preview = false;
-				mtxScreenCard.lock();
-
-				RGB_Output_Cuda.download(RGB_Output);
-				RGB_saving=RGB_Output.clone();
-				iFrameIndex++;
-
-				if(0)
-				if(iFrameIndex==50)
-				{
-					iFrameIndex=0;
-					std::string FileAndPathName;
-					std::time_t result = std::time(nullptr);
-					std::string  FileName = toString(result);
-					FileAndPathName = "/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
-
-					std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
-					t1.join();
-					if(iIndex==4)
-					{
-						iIndex=0;
-					}
-				}
-
-				DrawSnapShotDetections_clean(&RGB_Output,bTrackReset);
-
-				if(bCapture)
-				{
-					writeframe(RGB_Output.clone()); // save frame
-				}
-
-				bTrackReset = false;
-				DrawCameraData(&RGB_Output);
-				bstart = true;
-				mtxScreenCard.unlock();
-			}
-			if (bstart)
-			{
-				RGB__Draw = RGB_Output.clone();// output image ...
-				cv::Rect myROI(
-							MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
-							MouseData1.iXDownDynamic - MouseData1.iXUpDynamic,
-							MouseData1.iYDownDynamic - MouseData1.iYUpDynamic
-							);
-				if((0 <= myROI.x && 0 <= myROI.width && myROI.x + myROI.width <= RGB__Draw.cols &&
-					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows))
-				{
-
-					MouseMutex.lock();
-					Mat RGB__Draw_Small = RGB__Draw(myROI);
-					Mat RGB__Draw_SmallEnlarge;
-					Size ssize = RGB__Draw_Small.size();
-					if (!ssize.empty())
-					{
-						cv::resize(RGB__Draw_Small, RGB__Draw_SmallEnlarge,
-								Size((MouseData1.iXDownDynamic - MouseData1.iXUpDynamic) * 25,
-								(MouseData1.iYDownDynamic - MouseData1.iYUpDynamic) * 25), 0, 0, INTER_NEAREST);
-
-						RGB__Draw_SmallEnlarge.copyTo(RGB__Draw.rowRange(0, RGB__Draw_SmallEnlarge.rows).colRange(0, RGB__Draw_SmallEnlarge.cols));
-					}
-					MouseMutex.unlock();
-					bEnableClick = true;
-				}
-				else
-				{
-					bEnableClick = false;
-				}
-
-				rectangle(RGB__Draw, Point(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic), Point(MouseData1.iXDownDynamic, MouseData1.iYDownDynamic), Scalar(255, 255, 255), 1, 8, 0);
-				circle(RGB__Draw,Point(MouseData1.x,MouseData1.y),20,Scalar(255,255,255),3);\
-				DrawMouseText(&RGB__Draw,"Hello World",cv::Point(50,50));
-				DrawOutputThreadData(&RGB__Draw);
-				imshow("RGB Output", RGB__Draw);
-				RGB__Draw.release();
-			}
-
-			if(0)
-			{
-				if ((bFrameTimer%20)==0)
-				{
-					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-					Mat prev;
-					RGB_FrameInfo_Cuda.download(prev);
-					imshow("Frame Info", prev);
-				}
-			}
-
-			if (GetAsyncKeyState('i'))
-			{
-				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
-				imshow("Frame Info", RGB_FrameInfo_Cuda);
-			}
-
-			ck->updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
-
-			if(bTakeMask)
-			{
-				ck->maskPreview(mask_test, 0);
-
-				cv::Mat prev;
-
-				//mask_test.download(prev);
-
-				imshow("CK Mask", prev);
-			}
-
-			UpdateLookupFromMouse();
-			UpdateKeyState();
-
-			if (GetAsyncKeyState(27))//"Esc"
-			{
-				// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
-				bExitWorkerThread = true;
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				EndLoop();
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				std::cout << "Exit" << std::endl;
-				break;
-			}
-			if (bExite)
-			{
-				iExitCount++;
-				if (iExitCount == 100)
-				{
-					bExite = false;
-					printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
-				}
-			}
-
-			if (GetAsyncKeyState('y'))
-			{
-				if (bExite)
-				{
-					bExitWorkerThread = true;
-					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-					break;
-				}
-
-				if (GetAsyncKeyState('n'))
-				{
-					bExite = false;
-				}
-			};
-		}
+		pp->convertToRGB();
 	}
+	std::cout<<in->isOutput()<<std::endl;
 
-	cudaError_t cudaStatus;
-	 ExitMonitor();
+//	std::cout<<"Hello world"<<std::endl;
 
-	// cudaDeviceReset must be called before exiting in order for profiling and
-	// tracing tools such as Nsight and Visual Profiler to show complete traces.
-	std::cout << "End Cuda" << std::endl;
-	cudaStatus = cudaDeviceReset();
-	assert(cudaStatus == cudaSuccess);
+//	if (1)
+//	{
+//		#ifndef PREVIEW_OUTPUTRENDER
+//			initCameraUDPData();
+//			initOpenCVWindows();
+//
+//			//InitVizSocket();
+//		#endif
+//
+//		cuda::GpuMat RGB_Output_Cuda;
+//		RGB_Output_Cuda.create(1080, 1920, CV_8UC3); // fullHD image mat
+//		RGB_Output_Cuda.step = 5760; // step between the pixels -> allocates 3 bytes extra for every pixel
+//
+//		cuda::GpuMat mask_test(1080, 1920, CV_8UC1);
+//		// step between the pixels -> allocates 3 bytes extra for every pixel
+//
+//
+//		cuda::GpuMat RGB_FrameInfo_Cuda;
+//		RGB_FrameInfo_Cuda.create(1024, 1024, CV_8UC3);
+//		RGB_FrameInfo_Cuda.step = 1024 * 3;
+//
+//		cuda::GpuMat RGB_FrameInfo_Cuda_FullUpdate;
+//		RGB_FrameInfo_Cuda_FullUpdate.create(1024, 1024, CV_8UC3);
+//		RGB_FrameInfo_Cuda_FullUpdate.step = 1024 * 3;
+//
+//		myThreadData.RGB_Output_Cuda = &RGB_Output_Cuda;
+//		Mat MASK_L(1080, 1920, CV_8UC1, Scalar(0));
+//		myThreadData.MouseData1 = &MouseData1;
+//
+//		pthread_t threads;
+//		int rc;
+//
+//		// send output renderer to a separate thread
+//		rc = pthread_create(&threads, NULL, OutputRenderthread, (void *) &myThreadData);
+//		assert((rc==0));
+//
+//		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+////		mtxScreenCard.lock();
+//		while(myThreadData.p == nullptr);
+//		mtxScreenCard.lock();
+////		assert((myThreadData.p!=nullptr));
+////
+//		ChrommaKey* ck = new ChrommaKey(myThreadData.p);
+//
+//		mtxScreenCard.unlock();
+//
+//		initPosUDPData();
+//		Mat RGB__Draw;
+//		Mat RGB_Output;
+//		Mat RGB_saving;
+//		bool bstart = false;
+//		bool bCapture=false;
+//		static unsigned int bFrameTimer = 0;
+//
+//		#ifdef PREVIEW_OUTPUTRENDER
+//			while (1)
+//			{
+//				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//			};
+//		#endif
+//
+//		unsigned long UI_Frame_Counter=0;
+//
+//		while (1)
+//		{
+//			std::this_thread::sleep_for(std::chrono::milliseconds(40));
+//			UI_Frame_Counter++;
+//
+//			if (GetAsyncKeyState('g'))
+//			{
+//				cudaLookUpFullKey();
+//			}
+//
+//			if (GetAsyncKeyState('r'))//||(UI_Frame_Counter%10)==0
+//			{
+//				cudaLookUpReset(0);
+//			}
+//
+//			if (GetAsyncKeyState('f'))//||(UI_Frame_Counter%10)==0
+//			{
+//				cudaLookUpReset(1);
+//			}
+//
+//			if (GetAsyncKeyState('o'))
+//			{
+//				bClearOutPut=true;
+//			}
+//
+//			if (GetAsyncKeyState('b'))
+//			{
+//				bBypass = !bBypass;
+//			}
+//
+//			if (GetAsyncKeyState('h'))
+//			{
+//				printf("\n\n\n\n\n\r");
+//				printf("Chroma Software Usage: \n\t[h]\t->\tShows this help message.\n\n");
+//				printf("['q']\t->\tchroma snapshot update \n");
+//				printf("['a']\t->\tPaintItBack snapshot update \n");
+//				printf("['r']\t->\treset chroma lookup table\n");
+//				printf("['f']\t->\treset PaintItBack lookup table\n");
+//				printf("['o']\t->\tto clear output buffer frame list\n");
+//				printf("['i']\t->\tdisplay frame info\n\n");
+//				printf("[ctl+'l']\t->\tload settings\n");
+//				printf("[ctl+'s']\t->\tsave settings\n");
+//				printf("\n\n\n\r");
+//			}
+//
+//			bFrameTimer++;
+//
+//			if (GetAsyncKeyState('w'))
+//			{
+//				bTakeOutput = 0;
+//				bAutoTrain=true;
+//
+//			}
+//			else
+//			{
+//				bAutoTrain=false;
+//			}
+//
+//			if (GetAsyncKeyState('z'))
+//			{
+//				bTrackReset=true;
+//			}
+//			if (GetAsyncKeyState('c'))
+//			{
+//				bCapture=true;
+//			}else
+//			{
+//				bCapture=false;
+//			}
+//
+//			if (GetAsyncKeyState('q'))
+//			{
+//				SetOnAirLookup(0);
+//				iUpdateIndex = 0;
+//				UpdateSettingsWindow();
+//
+//				iLastCheck = 0;
+//				bTakeOutput = -1;
+//				bDoPaintBack=false;
+//
+//				mtxScreenCard.lock();
+//				bTakeMask = true;
+//				mtxScreenCard.unlock();
+//
+//				setWindowTitle("RGB Output", "Chroma");
+//				setWindowTitle("Settings","Settings Chroma");
+//			}
+//
+//			if (GetAsyncKeyState('a'))
+//			{
+//				SetOnAirLookup(1);
+//				iUpdateIndex = 1;
+//				UpdateSettingsWindow();
+//				iLastCheck = 0;
+//				bTakeOutput = -1;
+//				bDoPaintBack=true;
+//				mtxScreenCard.lock();
+//				bTakeMask = true;
+//				mtxScreenCard.unlock();
+//
+//				setWindowTitle("RGB Output", "PaintItBack");
+//				setWindowTitle("Settings","PaintItBack");
+//			}
+//
+//			if (GetAsyncKeyState(VK_F1))
+//			{
+//				bTakeOutput = 0;
+//			}
+//
+//			if (GetAsyncKeyState(VK_F2))
+//			{
+//				bTakeOutput = 1;
+//			}
+//
+//			if (GetAsyncKeyState(VK_F3))
+//			{
+//				bTakeOutput = 2;
+//			}
+//			if (GetAsyncKeyState(VK_F4))
+//			{
+//				bTakeOutput = 3;
+//			}
+//			if (GetAsyncKeyState(VK_F5))
+//			{
+//				bTakeOutput = 4;
+//			}
+//
+//			if (GetAsyncKeyState(VK_F10))
+//			{
+//				CameraZero();
+//			}
+//
+//			if (GetAsyncKeyState('s'))
+//			{
+//				std::string FileAndPathName;
+//				std::time_t result = std::time(nullptr);
+//				std::string  FileName= toString(result);
+//				FileAndPathName="/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // User relative Paths
+//				std::thread t1(SaveImageThread,RGB_saving.clone(),iIndex++,FileAndPathName);
+//				t1.join();
+//				if(iIndex==4)
+//				{
+//					iIndex=0;
+//				}
+//
+//			}
+//
+//			if (myThreadData.bUpdateRGB_Preview)// this is updated in the outputRenderer Thread
+//			{
+//				myThreadData.bUpdateRGB_Preview = false;
+//				mtxScreenCard.lock();
+//
+//				RGB_Output_Cuda.download(RGB_Output);
+//				RGB_saving=RGB_Output.clone();
+//				iFrameIndex++;
+//
+//				if(0)
+//				if(iFrameIndex==50)
+//				{
+//					iFrameIndex=0;
+//					std::string FileAndPathName;
+//					std::time_t result = std::time(nullptr);
+//					std::string  FileName = toString(result);
+//					FileAndPathName = "/home/jurie/Pictures/yolov5_soccer_training/"+FileName; // user relative paths
+//
+//					std::thread t1(SaveImageThread,RGB_Output.clone(),iIndex++,FileAndPathName);
+//					t1.join();
+//					if(iIndex==4)
+//					{
+//						iIndex=0;
+//					}
+//				}
+//
+//				DrawSnapShotDetections_clean(&RGB_Output,bTrackReset);
+//
+//				if(bCapture)
+//				{
+//					writeframe(RGB_Output.clone()); // save frame
+//				}
+//
+//				bTrackReset = false;
+//				DrawCameraData(&RGB_Output);
+//				bstart = true;
+//				mtxScreenCard.unlock();
+//			}
+//			if (bstart)
+//			{
+//				RGB__Draw = RGB_Output.clone();// output image ...
+//				cv::Rect myROI(
+//							MouseData1.iXUpDynamic, MouseData1.iYUpDynamic,
+//							MouseData1.iXDownDynamic - MouseData1.iXUpDynamic,
+//							MouseData1.iYDownDynamic - MouseData1.iYUpDynamic
+//							);
+//				if((0 <= myROI.x && 0 <= myROI.width && myROI.x + myROI.width <= RGB__Draw.cols &&
+//					0 <= myROI.y && 0 <= myROI.height && myROI.y + myROI.height <= RGB__Draw.rows))
+//				{
+//
+//					MouseMutex.lock();
+//					Mat RGB__Draw_Small = RGB__Draw(myROI);
+//					Mat RGB__Draw_SmallEnlarge;
+//					Size ssize = RGB__Draw_Small.size();
+//					if (!ssize.empty())
+//					{
+//						cv::resize(RGB__Draw_Small, RGB__Draw_SmallEnlarge,
+//								Size((MouseData1.iXDownDynamic - MouseData1.iXUpDynamic) * 25,
+//								(MouseData1.iYDownDynamic - MouseData1.iYUpDynamic) * 25), 0, 0, INTER_NEAREST);
+//
+//						RGB__Draw_SmallEnlarge.copyTo(RGB__Draw.rowRange(0, RGB__Draw_SmallEnlarge.rows).colRange(0, RGB__Draw_SmallEnlarge.cols));
+//					}
+//					MouseMutex.unlock();
+//					bEnableClick = true;
+//				}
+//				else
+//				{
+//					bEnableClick = false;
+//				}
+//
+//				rectangle(RGB__Draw, Point(MouseData1.iXUpDynamic, MouseData1.iYUpDynamic), Point(MouseData1.iXDownDynamic, MouseData1.iYDownDynamic), Scalar(255, 255, 255), 1, 8, 0);
+//				circle(RGB__Draw,Point(MouseData1.x,MouseData1.y),20,Scalar(255,255,255),3);\
+//				DrawMouseText(&RGB__Draw,"Hello World",cv::Point(50,50));
+//				DrawOutputThreadData(&RGB__Draw);
+//				imshow("RGB Output", RGB__Draw);
+//				RGB__Draw.release();
+//			}
+//
+//			if(0)
+//			{
+//				if ((bFrameTimer%20)==0)
+//				{
+//					Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+//					Mat prev;
+//					RGB_FrameInfo_Cuda.download(prev);
+//					imshow("Frame Info", prev);
+//				}
+//			}
+//
+//			if (GetAsyncKeyState('i'))
+//			{
+//				Launch_Frame_Info(&RGB_FrameInfo_Cuda);
+//				imshow("Frame Info", RGB_FrameInfo_Cuda);
+//			}
+//
+//			//ck->updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
+//
+////			if(bTakeMask)
+////			{
+////				ck->maskPreview(mask_test, 0);
+////
+////				cv::Mat prev;
+////
+////				//mask_test.download(prev);
+////
+////				imshow("CK Mask", prev);
+////			}
+//
+//			UpdateLookupFromMouse();
+//			UpdateKeyState();
+//
+//			if (GetAsyncKeyState(27))//"Esc"
+//			{
+//				// Do some clean up and free memory, c++ garbage collector doesn't clean up some things.
+//				bExitWorkerThread = true;
+//				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//				EndLoop();
+//				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//				std::cout << "Exit" << std::endl;
+//				break;
+//			}
+//			if (bExite)
+//			{
+//				iExitCount++;
+//				if (iExitCount == 100)
+//				{
+//					bExite = false;
+//					printf("Exit process canceled Exit process canceledExit process canceledExit process canceled\n\r");
+//				}
+//			}
+//
+//			if (GetAsyncKeyState('y'))
+//			{
+//				if (bExite)
+//				{
+//					bExitWorkerThread = true;
+//					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//					break;
+//				}
+//
+//				if (GetAsyncKeyState('n'))
+//				{
+//					bExite = false;
+//				}
+//			};
+//		}
+//	}
+//
+//	cudaError_t cudaStatus;
+//	 ExitMonitor();
+//
+//	// cudaDeviceReset must be called before exiting in order for profiling and
+//	// tracing tools such as Nsight and Visual Profiler to show complete traces.
+//	std::cout << "End Cuda" << std::endl;
+//	cudaStatus = cudaDeviceReset();
+//	assert(cudaStatus == cudaSuccess);
 
 	return 0;
 }

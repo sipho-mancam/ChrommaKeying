@@ -26,6 +26,7 @@ IPipeline::IPipeline()
 	this->augVideo = nullptr;
 	this->frameSizePacked = 0;
 	this->frameSizeUnpacked = 0;
+	this->rowLength = 0;
 	this->iHeight = 0;
 	this->iWidth = 0;
 	this->cudaStatus ;
@@ -47,6 +48,7 @@ IPipeline::IPipeline(IPipeline* pObj)
 	this->cudaStatus ;
 	this->cudaStatus = cudaStreamCreate(&this->stream);
 	this->mtx = pObj->mtx;
+	this->rowLength  = pObj->rowLength;
 }
 
 void IPipeline::checkCudaError(std::string action, std::string loc)
@@ -67,53 +69,72 @@ Input::Input(VideoIn* i): IPipeline()
 	this->pFill = nullptr;
 	this->pKey = nullptr;
 	this->pVideo = nullptr;
+	this->init();
 }
 
 void Input::init()
 {
 	while(this->input->m_sizeOfFrame == -1)
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
+	input->WaitForFrames(-1);
 
-	this->cudaStatus = cudaMalloc(&this->pVideo, this->input->m_sizeOfFrame);
+	input->imagelistVideo.ClearAll(0);
+	input->imagelistFill.ClearAll(0);
+	input->imagelistKey.ClearAll(0);
+	input->ImagelistOutput.ClearAll(1);
+
+	this->cudaStatus = cudaMalloc((void**)&this->pVideo, this->input->m_sizeOfFrame);
 	this->checkCudaError("Allocate Memory", " packedVideo");
 
-	this->cudaStatus = cudaMalloc(&this->pKey, this->input->m_sizeOfFrame);
+	this->cudaStatus = cudaMalloc((void**)&this->pKey, this->input->m_sizeOfFrame);
 	this->checkCudaError("Allocate Memory", " packedKey");
 
-	this->cudaStatus = cudaMalloc(&this->pFill, this->input->m_sizeOfFrame);
+	this->cudaStatus = cudaMalloc((void**)&this->pFill, this->input->m_sizeOfFrame);
 	this->checkCudaError("Allocate Memory", " packedVideo");
 
 	this->iHeight = this->input->m_iHeight;
 	this->iWidth = this->input->m_iWidth;
 	this->frameSizePacked = this->input->m_sizeOfFrame;
 	this->frameSizeUnpacked = this->input->m_iFrameSizeUnpacked;
+	this->rowLength = this->input->m_RowLength;
+
+
 }
 
 
 void Input::run()
 {
-	static void* videoFrame;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
+	const int srcAlignedWidth = this->rowLength/16;
+	const int dstAlignedWidth = this->iWidth/2;
 
+	input->WaitForFrames(1);
+	static void* videoFrame;
+	this->in = false;
 	if(videoFrame)
-			free(videoFrame);
+		free(videoFrame);
 	videoFrame = this->input->imagelistVideo.GetFrame(true);
 	void* keyFrame = this->input->imagelistKey.GetFrame(true);
 	void* fillFrame = this->input->imagelistFill.GetFrame(true);
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
+	this->checkCudaError("copy memory", " pVideo");
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
+	this->checkCudaError("copy memory", " pKey");
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->cudaStatus = cudaMemcpy(this->pFill, fillFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
+	this->checkCudaError("copy memory", " pFill");
 	assert((this->cudaStatus == cudaSuccess));
 
 	if(fillFrame)
-			free(fillFrame);
-
+		free(fillFrame);
 	if(keyFrame)
 		free(keyFrame);
+	this->in = true;
 }
 
 
@@ -126,16 +147,18 @@ Preprocessor::Preprocessor(uchar2* video, uchar2*key, uchar2*fill) // these vari
 	this->pFill = fill;
 	this->augVideo = nullptr;
 	this->rgbVideo = nullptr;
+	this->init();
 }
 
 Preprocessor::Preprocessor(IPipeline* obj, uchar2* video, uchar2*key, uchar2*fill): IPipeline(obj)
 {
-//	this->pVideo = obj->pVideo;
+	this->pVideo = obj->pVideo;
 	this->pVideo = video;
 	this->pKey = key;
 	this->pFill = fill;
 	this->augVideo = nullptr;
 	this->rgbVideo = nullptr;
+	this->init();
 }
 
 void Preprocessor::init()
@@ -152,7 +175,7 @@ void Preprocessor::init()
 	this->checkCudaError("Allocate Memory", " fill buffer");
 	assert((this->cudaStatus == cudaSuccess));
 
-	this->cudaStatus = cudaMalloc((void**)&this->augVideo, this->frameSizeUnpacked);
+	this->cudaStatus = cudaMalloc((void**)&this->augVideo,this->frameSizeUnpacked);
 	this->checkCudaError("Allocate Memory", " augmented video buffer");
 	assert((this->cudaStatus == cudaSuccess));
 
@@ -161,12 +184,17 @@ void Preprocessor::init()
 	assert((this->cudaStatus == cudaSuccess));
 }
 
+void Preprocessor::load(uchar2* pv, uchar2* pk, uchar2* pf)
+{
+	this->pVideo = pv; this->pKey = pk; this->pFill = pf;
+}
+
 void Preprocessor::unpack()
 {
 	// Unpacked yuv to yuyv
 	const dim3 block(16, 16);
-	const dim3 grid(iDivUp(this->iWidth, block.x), iDivUp(this->iHeight, block.y));
-	const int srcAlignedWidth = this->iWidth;
+	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
+	const int srcAlignedWidth = this->rowLength/16;
 	const int dstAlignedWidth = this->iWidth/2;
 
 	// Unpack yuv video from decklink and store it in yUnpackedCudaVideo
@@ -197,7 +225,6 @@ void Preprocessor::unpack()
 				this->iHeight
 			);
 
-
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("synchronize device", " at unpacking");
 
@@ -208,7 +235,19 @@ void Preprocessor::unpack()
 
 void Preprocessor::convertToRGB()
 {
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
 
+	yuyvUmPackedToRGB<<<block, grid>>>(
+			this->augVideo,
+			this->rgbVideo,
+			this->iWidth,
+			this->iWidth,
+			this->iHeight,
+			this->key
+		);
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("Synchronize device", " host");
 }
 
 void Preprocessor::create()
@@ -364,14 +403,14 @@ uchar* YoloMask::output()
 	return this->maskBuffer;
 }
 
-void Mask::create()
+void MaskOut::create()
 {
 	// perform some mask creation here ...
 }
 
-uchar* Mask::output()
+uchar* MaskOut::output()
 {
-	return this->chromma->maskBuffer;
+	return this->chromma->output();
 }
 
 

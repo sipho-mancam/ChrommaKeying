@@ -1156,7 +1156,7 @@ __global__ void yuyvUmPackedToRGB_lookup(uint4* src_Unapc, uchar3* dst, int srcA
 	}
 }
 
-__global__ void yuyvUmPackedToRGB(ulong4* src_Unapc,  uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height,  ulong4* src__Key_Unapc)
+__global__ void yuyvUmPackedToRGB(uint4* src_Unapc,  uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height,  uint4* src__Key_Unapc)
 {
 
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1166,20 +1166,20 @@ __global__ void yuyvUmPackedToRGB(ulong4* src_Unapc,  uchar3* dst, int srcAligne
 		return;
 
 
-	ulong4 *macroPxKey;
+	uint4 *macroPxKey;
 	macroPxKey = &src__Key_Unapc[y * srcAlignedWidth + x];
 
 
-	ulong4 *macroPx;
+	uint4 *macroPx;
 	macroPx = &src_Unapc[y * srcAlignedWidth + x];
 
 	double3 px_0 = make_double3(clamp(macroPx->y + 1.540f * (macroPx->z - 512.0), 0.0, 1023.0),
-			clamp(macroPx->y - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
-			clamp(macroPx->y + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
+				clamp(macroPx->y - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
+				clamp(macroPx->y + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
 
-		double3	px_1 = make_double3(clamp(macroPx->w + 1.540f *(macroPx->z - 512.0), 0.0, 1023.0),
-			clamp(macroPx->w - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
-			clamp(macroPx->w + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
+	double3	px_1 = make_double3(clamp(macroPx->w + 1.540f *(macroPx->z - 512.0), 0.0, 1023.0),
+				clamp(macroPx->w - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
+				clamp(macroPx->w + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
 
 
 		
@@ -2734,7 +2734,6 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 
 	uint4 *macroPxVideo;
 	macroPxVideo = &src_Video_Unapc[PixelPosY * srcAlignedWidth + PixelPosX];
-	printf("%.2f\n", *macroPxVideo);
 	//printf("%d %d %d %d\n",macroPxVideo->x,macroPxVideo->z,macroPxVideo->y);
 	float fCenter = (iOuter_Diameter + iUV_Diameter) / 2;
 	float fx = x - fCenter;
@@ -3433,11 +3432,12 @@ __global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4*
 	uint4 *macroPxKeyLeft;
 	uint4 *macroPxKeyRight;
 
+	double4 Parabolic = Parabolic0;
+	double dBlendPos = iBlendPos0 / 876.0;
+
 	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
 	macroPxFill = &src__Fill_Unapc[y * srcAlignedWidth + x];
 	macroPxKey = &src__Key_Unapc[y * srcAlignedWidth + x];
-
-
 
 
 	if (y > 0)
@@ -3463,11 +3463,9 @@ __global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4*
 		macroPxKeyRight = &src__Key_Unapc[(y)* srcAlignedWidth + x];
 	}
 
-	double4 Parabolic = Parabolic0;
-	double dBlendPos = iBlendPos0 / 876.0;
+
 
 	if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0 && maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
-	if (maskUpload1[y * dstAlignedWidth + (x * 2) + 0] == 0 || maskUpload1[y * dstAlignedWidth + (x * 2) + 1] == 0)
 	{
 		if (Parabolic.w)
 		{
@@ -3476,70 +3474,50 @@ __global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4*
 			double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
 			if (CalculateLumKeyVal < 0)
 				return;
-
 			dBlendPos = dBlendPos * CalculateLumKeyVal;
 		}
-		else
-		{
-			dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
-		//	printf("%f", dBlendPos);
-		}
-
-		calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
-		calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->y, &macroPxVideo->x, dBlendPos);
-		calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
-		calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
+		else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
 	}
 	else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0)
 	{
-		if (maskUpload1[y * dstAlignedWidth + (x * 2) + 0] == 0)
+		if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] == 0)
 		{
+			if (Parabolic.w)
+			{
+				dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+
+				double Lum = (macroPxVideo->y);
+				double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
+				if (CalculateLumKeyVal < 0)
+					return;
+
+				dBlendPos = dBlendPos * CalculateLumKeyVal;
+			}
+			else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+		}
+		else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
+		{
+			if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] == 0)
+			{
 				if (Parabolic.w)
 				{
-					dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
-
-					double Lum = (macroPxVideo->y);
+					dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
+					double Lum = (macroPxVideo->w);
 					double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
 					if (CalculateLumKeyVal < 0)
 						return;
 
 					dBlendPos = dBlendPos * CalculateLumKeyVal;
 				}
-				else
-				{
-					dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
-				}
-
-				calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->w, &macroPxVideo->x, dBlendPos);
-				calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
-				calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
-
-			}
-			else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
-			{
-				if (maskUpload1[y * dstAlignedWidth + (x * 2) + 1] == 0)
-				{
-					if (Parabolic.w)
-					{
-						dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
-						double Lum = (macroPxVideo->w);
-						double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
-						if (CalculateLumKeyVal < 0)
-							return;
-
-						dBlendPos = dBlendPos * CalculateLumKeyVal;
-					}
-					else
-					{
-						dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
-
-					}
-					calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
-					calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->x, &macroPxVideo->x, dBlendPos);
-					calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
-				}
+				else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
 			}
 		}
+	}
+
+	calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
+	calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->y, &macroPxVideo->x, dBlendPos);
+	calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
+	calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
 }
 
 
@@ -3837,8 +3815,9 @@ __global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (x >= srcAlignedWidth || y >= height)
-	return;
+		return;
 	uint4 *macroPx;
+//	printf("%d\n",y * srcAlignedWidth + x);
 	macroPx = &src_Video[y * srcAlignedWidth + x];
 	double Cr0;
 	double Y0;
