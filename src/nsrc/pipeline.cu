@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <opencv2/cudafilters.hpp>
 #include "interfaces.hpp"
+#include <ui.hpp>
 
 /**** Utils *****/
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
@@ -24,6 +25,7 @@ IPipeline::IPipeline()
 	this->key = nullptr;
 	this->video = nullptr;
 	this->augVideo = nullptr;
+	this->rgbVideo = nullptr;
 	this->frameSizePacked = 0;
 	this->frameSizeUnpacked = 0;
 	this->rowLength = 0;
@@ -41,6 +43,7 @@ IPipeline::IPipeline(IPipeline* pObj)
 	this->key = pObj->key;
 	this->video = pObj->video;
 	this->augVideo = pObj->augVideo;
+	this->rgbVideo = pObj->rgbVideo;
 	this->frameSizePacked = pObj->frameSizePacked;
 	this->frameSizeUnpacked = pObj->frameSizeUnpacked;
 	this->iHeight = pObj->iHeight;
@@ -76,6 +79,8 @@ void Input::init()
 {
 	while(this->input->m_sizeOfFrame == -1)
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
+
+//	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	input->WaitForFrames(-1);
 
 	input->imagelistVideo.ClearAll(0);
@@ -83,22 +88,16 @@ void Input::init()
 	input->imagelistKey.ClearAll(0);
 	input->ImagelistOutput.ClearAll(1);
 
-	this->cudaStatus = cudaMalloc((void**)&this->pVideo, this->input->m_sizeOfFrame);
-	this->checkCudaError("Allocate Memory", " packedVideo");
-
-	this->cudaStatus = cudaMalloc((void**)&this->pKey, this->input->m_sizeOfFrame);
-	this->checkCudaError("Allocate Memory", " packedKey");
-
-	this->cudaStatus = cudaMalloc((void**)&this->pFill, this->input->m_sizeOfFrame);
-	this->checkCudaError("Allocate Memory", " packedVideo");
-
 	this->iHeight = this->input->m_iHeight;
 	this->iWidth = this->input->m_iWidth;
 	this->frameSizePacked = this->input->m_sizeOfFrame;
 	this->frameSizeUnpacked = this->input->m_iFrameSizeUnpacked;
 	this->rowLength = this->input->m_RowLength;
+}
 
-
+void Input::load(uchar2* pv, uchar2* pk, uchar2* pf)
+{
+	this->pVideo = pv; this->pKey = pk; this->pFill = pf;
 }
 
 
@@ -120,6 +119,7 @@ void Input::run()
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
 	this->checkCudaError("copy memory", " pVideo");
+//	std::cout<<"Video: "<<videoFrame<<std::endl;
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
@@ -130,14 +130,13 @@ void Input::run()
 	this->checkCudaError("copy memory", " pFill");
 	assert((this->cudaStatus == cudaSuccess));
 
+
 	if(fillFrame)
 		free(fillFrame);
 	if(keyFrame)
 		free(keyFrame);
 	this->in = true;
 }
-
-
 
 
 Preprocessor::Preprocessor(uchar2* video, uchar2*key, uchar2*fill) // these variables must be GPU pointers
@@ -152,7 +151,6 @@ Preprocessor::Preprocessor(uchar2* video, uchar2*key, uchar2*fill) // these vari
 
 Preprocessor::Preprocessor(IPipeline* obj, uchar2* video, uchar2*key, uchar2*fill): IPipeline(obj)
 {
-	this->pVideo = obj->pVideo;
 	this->pVideo = video;
 	this->pKey = key;
 	this->pFill = fill;
@@ -163,30 +161,17 @@ Preprocessor::Preprocessor(IPipeline* obj, uchar2* video, uchar2*key, uchar2*fil
 
 void Preprocessor::init()
 {
-	this->cudaStatus = cudaMalloc((void**)&this->video, this->frameSizeUnpacked);
-	this->checkCudaError("Allocate Memory", " video buffer");
-	assert((this->cudaStatus == cudaSuccess));
 
-	this->cudaStatus = cudaMalloc((void**)&this->key, this->frameSizeUnpacked);
-	this->checkCudaError("Allocate Memory", " key buffer");
-	assert((this->cudaStatus == cudaSuccess));
-
-	this->cudaStatus = cudaMalloc((void**)&this->fill, this->frameSizeUnpacked);
-	this->checkCudaError("Allocate Memory", " fill buffer");
-	assert((this->cudaStatus == cudaSuccess));
-
-	this->cudaStatus = cudaMalloc((void**)&this->augVideo,this->frameSizeUnpacked);
-	this->checkCudaError("Allocate Memory", " augmented video buffer");
-	assert((this->cudaStatus == cudaSuccess));
-
-	this->cudaStatus = cudaMalloc((void**)&this->rgbVideo, this->iHeight*this->iWidth*sizeof(uchar3));
-	this->checkCudaError("Allocate Memory", " RGB Video buffer");
-	assert((this->cudaStatus == cudaSuccess));
 }
 
-void Preprocessor::load(uchar2* pv, uchar2* pk, uchar2* pf)
+void Preprocessor::reload(uchar2* pv, uchar2* pk, uchar2* pf)
 {
 	this->pVideo = pv; this->pKey = pk; this->pFill = pf;
+}
+
+void Preprocessor::load(uint4* v, uint4* k, uint4* f, uint4* av, uchar3* rgb)
+{
+	this->video = v; this->key = k; this->fill = f; this->augVideo = av; this->rgbVideo = rgb;
 }
 
 void Preprocessor::unpack()
@@ -200,54 +185,63 @@ void Preprocessor::unpack()
 	// Unpack yuv video from decklink and store it in yUnpackedCudaVideo
 	yuyvPackedToyuyvUnpacked <<<grid, block>>>(
 			(uint4*)this->pVideo,
-			(uint4*)this->video,
+			this->video,
 			srcAlignedWidth,
 			dstAlignedWidth,
 			this->iHeight
 		);
-
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
 	// Unpack yuv key from decklink and store it in yUnpackedCudaKey
-	yuyvPackedToyuyvUnpacked <<<grid, block, 0, this->stream>>>(
+	yuyvPackedToyuyvUnpacked <<<grid, block>>>(
 				(uint4*)this->pKey,
-				(uint4*)this->key,
+				this->key,
 				srcAlignedWidth,
 				dstAlignedWidth,
 				this->iHeight
 			);
-
-
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
 	// Unpack yuv fill from decklink and store it in yUnpackedCudaFill
 	yuyvPackedToyuyvUnpacked <<<grid, block>>>(
 				(uint4*)this->pFill,
-				(uint4*)this->fill,
+				this->fill,
 				srcAlignedWidth,
 				dstAlignedWidth,
 				this->iHeight
 			);
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
 
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("synchronize device", " at unpacking");
 
-	this->cudaStatus = cudaMemcpyAsync(this->augVideo, this->video, this->frameSizeUnpacked, cudaMemcpyDeviceToHost,this->stream);
+	this->cudaStatus = cudaMemcpy(this->augVideo, this->video, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
 	this->checkCudaError("copy data", " augmented video buffer");
-
 }
 
 void Preprocessor::convertToRGB()
 {
-	const dim3 block(16, 16);
-	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
 
-	yuyvUmPackedToRGB<<<block, grid>>>(
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
+
+
+	yuyvUnpackedToRGB<<<grid, block>>>(
 			this->augVideo,
 			this->rgbVideo,
-			this->iWidth,
+			this->iWidth/2,
 			this->iWidth,
 			this->iHeight,
 			this->key
 		);
+
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
+
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("Synchronize device", " host");
+
 }
 
 void Preprocessor::create()
@@ -259,34 +253,29 @@ LookupTable::LookupTable(IPipeline *obj): IPipeline(obj)
 {
 	this->lookupBuffer = nullptr;
 	this->loaded = false;
+	this->snapShot = nullptr;
 }
 
 void LookupTable::create()
 {
-	this->cudaStatus = cudaMalloc((void**)&this->lookupBuffer, (long int)4*pow(2, 10)*sizeof(uchar));
-	assert((this->cudaStatus==cudaSuccess));
 	this->loaded = false;
 }
 
-void LookupTable::update(bool init, bool clickEn, MouseData md, WindowSettings ws)
+void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws)
 {
-//	std::cout<<"[info]: Update Lookup started"<<std::endl;
-
 	if(!clickEn)return;
 
 	if (md.bHandleLDown)
 	{
 		this->loaded = false;
 		int maxRecSize = 200;
-		float ScalingValue = maxRecSize*1.0/ws.m_iOuter_Diam*1.0;
+		float ScalingValue = maxRecSize*1.0/ws["Outer Diam"]*1.0;
 
 		const dim3 block(16, 16);
 		const dim3 grid(
-				iDivUp((ws.m_iOuter_Diam+ws.m_iUV_Diam)*2, block.x),
-				iDivUp((ws.m_iOuter_Diam+ws.m_iUV_Diam)*2, block.y)
+				iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.x),
+				iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
 				);
-
-		uchar* ptrLookUpDataToUse = this->lookupBuffer;
 
 		this->mtx->lock();
 		std::cout<<"[info]: Thread locked ..."<<std::endl;
@@ -296,13 +285,13 @@ void LookupTable::update(bool init, bool clickEn, MouseData md, WindowSettings w
 			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
 			{
 				UpdateLookupFrom_XY_Posision_Diffrent_Scaling <<<grid, block>>> (
-						(uint4*)this->augVideo,
-						ptrLookUpDataToUse,
+						this->snapShot,
+						this->lookupBuffer,
 						x, y,
 						(this->iHeight / 2),
-						ws.m_iOuter_Diam*2,
-						ws.m_iUV_Diam*2,
-						ws.m_iLum_Diam,
+						ws["Outer Diam"]*2,
+						ws["UV Diam"]*2,
+						ws["E Lum"],
 						ScalingValue,
 						maxRecSize
 						);
@@ -315,7 +304,7 @@ void LookupTable::update(bool init, bool clickEn, MouseData md, WindowSettings w
 		this->loaded = true;
 		this->mtx->unlock();
 	}
-//	std::cout<<"[info]: LookupTable updated successfully"<<std::endl;
+	std::cout<<"Updated"<<std::endl;
 }
 
 void IMask::init()
@@ -413,6 +402,120 @@ uchar* MaskOut::output()
 	return this->chromma->output();
 }
 
+inline void allocateMemory(void** devptr, long int size)
+{
+	cudaError_t cudaStatus = cudaMalloc(devptr, size);
+	assert(cudaStatus==cudaSuccess);
+}
 
+void startPipeline()
+{
+	uchar *chrommaLookupBuffer;
+	uchar2 *pVideo, *pKey, *pFill;
+	uchar3* rgbVideo, *vSnapshot;
+	uint4 *video, *key, *fill, *aVideo, *snapShotV;
+
+	VideoIn decklink;
+
+	Input *in = new Input(&decklink);
+
+	//This is for memory alignment
+	/*****
+	 * It seems allocating device memory inside an object causes misalignment,
+	 * Reason:
+	 * 	still need to read more and find out why.
+	 * Solution:
+	 * 	Declare memory outside and load it inside, but keep the rest of the flow fixed.
+	 */
+	allocateMemory((void**)&pVideo,in->getPFrameSize());
+	allocateMemory((void**)&pKey, in->getPFrameSize());
+	allocateMemory((void**)&pFill, in->getPFrameSize());
+
+	allocateMemory((void**)&video, in->getFrameSize());
+	allocateMemory((void**)&key, in->getFrameSize());
+	allocateMemory((void**)&fill, in->getFrameSize());
+	allocateMemory((void**)&aVideo, in->getFrameSize());
+	allocateMemory((void**)&snapShotV, in->getFrameSize());
+	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)& rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
+
+	allocateMemory((void**)&chrommaLookupBuffer, (long int)4*pow(2, 10)*sizeof(uchar));
+
+	WindowsContainer uiContainer;
+
+	WindowI mainWindow("Main");
+
+	WindowI snapShotWindow("Snapshot");
+
+	SettingsWindow settings("Setting");
+
+	mainWindow.enableMouse();
+
+	uiContainer.addWindow(&mainWindow);
+	uiContainer.addWindow(&snapShotWindow);
+	uiContainer.addWindow(&settings);
+
+
+
+
+	in->load(pVideo, pKey, pFill);
+
+	in->run();
+
+	if(in->isOutput())
+	{
+		Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
+		pp->load(video, key, fill, aVideo, rgbVideo);
+		pp->unpack();
+		pp->convertToRGB();
+
+		uiContainer.dispatchKey();
+
+		SnapShot *ss = new SnapShot(pp);
+		ss->load(vSnapshot, snapShotV);
+		ss->takeSnapShot();
+
+		Preview *prev = new Preview(ss);
+		prev->load(ss->getSnapShot());
+		prev->preview(mainWindow.getHandle());
+
+		LookupTable *lt = new LookupTable(ss);
+
+		lt->load(chrommaLookupBuffer, snapShotV);
+
+		int i = 0;
+		while(uiContainer.dispatchKey() != 27)
+		{
+			in->run();
+			pp->reload(in->getPVideo(), in->getPKey(), in->getPFill());
+			pp->unpack();
+			pp->convertToRGB();
+			ss->takeSnapShot();
+
+			prev->load(ss->getSnapShot());
+			prev->preview(mainWindow.getHandle());
+
+			i++;
+
+			printf("%d\n", snapShotWindow.getPressKey());
+			if(uiContainer.dispatchKey() == 'q')
+			{
+				prev->load(ss->getSnapShot());
+				prev->preview(snapShotWindow.getHandle());
+			}
+
+			if(snapShotWindow.isCaptured())// frame is captured
+			{
+				snapShotWindow.enableMouse();
+				lt->update(snapShotWindow.isCaptured(), snapShotWindow.getMD(), settings.getTrackbarValues());
+			}
+
+
+		}
+
+	}
+
+	std::cout<<"Pipeline finished"<<std::endl;
+}
 
 

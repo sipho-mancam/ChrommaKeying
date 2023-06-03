@@ -54,6 +54,7 @@ struct MouseData
 	bool bHandleRDown = false;
 	bool bHandleL = false;
 	bool bHandleR = false;
+	std::string windowName;
 
 };
 
@@ -64,14 +65,12 @@ struct WindowSettings
 	int m_iOuter_Diam ;
 	int m_iErase_Diam ;
 	int m_iErase_Lum_Diam ;
-
 	int m_iErode;
 	int m_iDilate ;
 	int m_iLowerlimit ;
 	int m_iUpperlimit ;
-
+	int m_BlendPos;
 	int m_cunnyb;
-
 	int m_cunnyt;
 	double4 m_ParabolicFunc;
 
@@ -83,13 +82,11 @@ struct WindowSettings
 			m_iOuter_Diam=14;
 			m_iErase_Diam=15;
 			m_iErase_Lum_Diam=15;
-			 m_cunnyb=125;
-			 m_cunnyt=274;
+			m_cunnyb=125;
+			m_cunnyt=274;
 			m_iErode=2;
 			m_iDilate=1;
-
-
-			//m_BlendPos = 0;
+			m_BlendPos = 0;
 			m_iLowerlimit = 80;
 			m_iUpperlimit=80;
 		}
@@ -97,7 +94,7 @@ struct WindowSettings
 
 };
 //void Launch_yuyvToRgba10(int RowLength, void *RGBData, int iBlendPos, void *Mask, bool bDownloadRGB);
-__global__ void yuyvUmPackedToRGB(uint4* ,  uchar3*, int , int , int ,  uint4*);
+__global__ void yuyvUnpackedToRGB(uint4* ,  uchar3*, int , int , int ,  uint4*);
 __global__ void yuyvPackedToyuyvUnpacked(uint4* , uint4 *,int , int , int );
 __global__ void yuyvUnPackedToPlanarRGB_Split(uint4* , uint8_t *,uint8_t *, uint8_t *, uint8_t *, uint32_t , int ,int , int );
 __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* , uint4* , uint4* , int , int , int , int , uchar *, uchar *, uchar *, int , int , int , double4 , double4 , double4 , unsigned long int , unsigned long int , unsigned long int , unsigned long int );

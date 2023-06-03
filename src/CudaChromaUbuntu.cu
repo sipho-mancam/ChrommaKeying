@@ -997,21 +997,10 @@ int main()
 	static int iFrameIndex=0;
 	StartMonitor();
 
-	VideoIn decklink;
-
-	Input *in = new Input(&decklink);
-
-	in->run();
-
-	if(in->isOutput())
-	{
-		Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
-
-		pp->unpack();
-
-		pp->convertToRGB();
-	}
-	std::cout<<in->isOutput()<<std::endl;
+	startPipeline();
+//	std::thread p(&startPipeline);
+//
+//	p.join();
 
 //	std::cout<<"Hello world"<<std::endl;
 

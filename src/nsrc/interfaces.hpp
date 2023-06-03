@@ -16,6 +16,8 @@
 #include <YUVUChroma.cuh>
 #include <stdio.h>
 #include <opencv2/cudafilters.hpp>
+#include <opencv2/opencv.hpp>
+#include <unordered_map>
 
 
 class IPipeline
@@ -24,6 +26,7 @@ protected:
 	uint4* video;
 	uint4* fill;
 	uint4* key, *augVideo;
+	uchar3* rgbVideo;
 	cudaStream_t stream;
 	cudaError_t cudaStatus;
 	long int frameSizePacked, frameSizeUnpacked, rowLength;
@@ -38,6 +41,7 @@ public:
 	virtual void update() {}
 //	virtual void output() = 0;
 	virtual void init() {}
+//	virtual void convertToRGB(){}
 
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
@@ -75,13 +79,33 @@ public:
 };
 
 
-class Preview
+class Preview :IPipeline
 {
+private:
+	uchar3* rgbData;
+	cv::cuda::GpuMat mat;
+	cv::Mat prev;
 public:
-	Preview()
+	Preview(IPipeline *obj): IPipeline(obj)
 	{
-
+		this->rgbData = nullptr;
+		this->mat.create(this->iHeight, this->iWidth, CV_8UC3);
+		this->mat.step = 5760;
 	}
+
+	void load(uchar3* rgb){ this->rgbData = rgb;}
+
+	void preview(std::string windowHandle)
+	{
+		if(rgbData==nullptr)return;
+
+		mat.data = (uchar*)this->rgbData;
+		mat.download(this->prev);
+		cv::imshow(windowHandle, this->prev);
+
+		cv::waitKey(5);
+	}
+
 
 };
 
@@ -103,6 +127,7 @@ public:
 	void init() override; // initialize cuda variables
 	bool isOutput(){return in;}
 	void run(); // receive video and copy it to gpu
+	void load(uchar2* pv, uchar2* pk, uchar2* pf);
 	uchar2* getPVideo(){return this->pVideo;}
 	uchar2* getPKey(){return this->pKey;}
 	uchar2* getPFill(){return this->pFill;}
@@ -113,9 +138,7 @@ public:
 class Preprocessor: public IPipeline
 {
 private:
-	uchar3* rgbVideo;
 	uchar2* pVideo, *pKey, *pFill;
-
 
 public:
 	Preprocessor(IPipeline* , uchar2* video, uchar2*key, uchar2*fill);
@@ -124,34 +147,42 @@ public:
 	void convertToRGB(); // converts from yuyv to RGB
 	void create() override; // Some more pre-processing logic
 	void init() override;
-	void load(uchar2* pVideo, uchar2* pKey, uchar2* pFill);
+	void reload(uchar2* pVideo, uchar2* pKey, uchar2* pFill);
+	void load(uint4 *v, uint4 *k, uint4* f, uint4* av, uchar3* rgb);
 };
 
 
 class SnapShot: public IPipeline
 {
 private:
-	uint4* videoSnapShot;
+	uchar3* videoSnapShot;
+	uint4* frozenVideo;
 	bool taken;
+	IPipeline *base;
 public:
 	SnapShot(IPipeline* obj): IPipeline(obj)
 	{
 		this->videoSnapShot=nullptr;
-		this->cudaStatus = cudaMalloc((void**)&videoSnapShot, this->frameSizeUnpacked);
-		assert((this->cudaStatus==cudaSuccess));
+		this->base = obj;
 		taken = false;
+		this->frozenVideo = nullptr;
 	}
 
+	void load(uchar3* v, uint4* sv){ this->videoSnapShot = v; this->frozenVideo = sv;}
 	void takeSnapShot()
 	{
 		taken = false;
-		this->cudaStatus = cudaMemcpyAsync(this->videoSnapShot, this->augVideo, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice, NULL);
+		this->cudaStatus = cudaMemcpy(this->videoSnapShot, this->rgbVideo, this->iHeight*this->iWidth*sizeof(uchar3), cudaMemcpyDeviceToDevice);
 		assert((this->cudaStatus==cudaSuccess));
+
+		this->cudaStatus = cudaMemcpy(this->frozenVideo, this->augVideo, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
+		assert((this->cudaStatus==cudaSuccess));
+
 		taken  = true;
 	}
-
 	bool isSnaped(){return this->taken;}
-	uint4* getSnapShot(){return this->videoSnapShot;} // this will return the last snapshot taken
+	uchar3* getSnapShot(){return this->videoSnapShot;} // this will return the last snapshot taken
+	uint4* getFrozenVideo(){return this->frozenVideo;}
 };
 
 
@@ -160,12 +191,16 @@ class LookupTable: public IPipeline
 private:
 	uchar* lookupBuffer;
 	bool loaded;
+	uint4* snapShot;
 
 public:
 
 	LookupTable(IPipeline *obj);
 	void create() override;
-	void update(bool init , bool clickEn, MouseData md, WindowSettings ws);
+	void load(uchar* lb, uint4* snap){this->lookupBuffer = lb; this->snapShot = snap;}
+	void setSnap(uint4* snap){this->snapShot = snap;}
+
+	void update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws);
 	uchar* output(){return this->lookupBuffer;}
 	bool isLoaded(){return loaded;}
 };
@@ -226,6 +261,8 @@ public:
 
 
 
+inline void allocateMemory(void** devptr, long int size);
+void startPipeline();
 
 
 

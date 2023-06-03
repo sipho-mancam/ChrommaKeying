@@ -1156,9 +1156,10 @@ __global__ void yuyvUmPackedToRGB_lookup(uint4* src_Unapc, uchar3* dst, int srcA
 	}
 }
 
-__global__ void yuyvUmPackedToRGB(uint4* src_Unapc,  uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height,  uint4* src__Key_Unapc)
+__global__ void yuyvUnpackedToRGB(uint4* src_Unapc,  uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height,  uint4* src__Key_Unapc)
 {
 
+//	printf("I execute\n");
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -1181,7 +1182,7 @@ __global__ void yuyvUmPackedToRGB(uint4* src_Unapc,  uchar3* dst, int srcAligned
 				clamp(macroPx->w - 0.459f * (macroPx->x - 512.0) - 0.183f * (macroPx->z - 512.0), 0.0, 1023.0),
 				clamp(macroPx->w + 1.816f * (macroPx->x - 512.0), 0.0, 1023.0));
 
-
+//	printf("%lu %lu %lu %lu\n",macroPx->w, macroPx->x,macroPx->y, macroPx->z);
 		
 
 	if (macroPxKey->y < 65.0 && macroPxKey->w < 65.0)
@@ -3819,6 +3820,8 @@ __global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,
 	uint4 *macroPx;
 //	printf("%d\n",y * srcAlignedWidth + x);
 	macroPx = &src_Video[y * srcAlignedWidth + x];
+
+
 	double Cr0;
 	double Y0;
 	double Cb0;
