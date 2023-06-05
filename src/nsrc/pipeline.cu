@@ -476,7 +476,7 @@ void Keyer::create()
 			dstAlignedWidth,
 			maskWidth,
 			this->finalMask,
-			0,
+			480,
 			this->parabolic
 		);
 	this->cudaStatus = cudaGetLastError();
@@ -601,7 +601,6 @@ void startPipeline()
 
 			if(cm->isMask())
 			{
-				std::cout<<"I execute"<<std::endl;
 				keyer->create();
 				keyer->convertToRGB();
 				prev->load(keyer->getRGB());
