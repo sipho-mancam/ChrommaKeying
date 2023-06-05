@@ -508,9 +508,6 @@ void startPipeline()
 
 			keyingWindow.update();
 		}
-
-
-
 	}
 
 	std::cout<<"Pipeline finished"<<std::endl;

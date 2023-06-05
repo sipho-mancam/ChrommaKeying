@@ -1309,19 +1309,6 @@ int main()
 //				imshow("Frame Info", RGB_FrameInfo_Cuda);
 //			}
 //
-//			//ck->updateLookup(bEnableClick, bDoPaintBack, MouseData1, FourSettings[iUpdateIndex]);
-//
-////			if(bTakeMask)
-////			{
-////				ck->maskPreview(mask_test, 0);
-////
-////				cv::Mat prev;
-////
-////				//mask_test.download(prev);
-////
-////				imshow("CK Mask", prev);
-////			}
-//
 //			UpdateLookupFromMouse();
 //			UpdateKeyState();
 //
