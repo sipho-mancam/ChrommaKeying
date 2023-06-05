@@ -43,7 +43,7 @@ public:
 	virtual void update() {}
 //	virtual void output() = 0;
 	virtual void init() {}
-//	virtual void convertToRGB(){}
+	virtual void convertToRGB();
 
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
@@ -119,7 +119,7 @@ public:
 };
 
 /****
- * Video is received as yuv from decklink and unpacked to yuyv
+ * Video is received as YCbCr from decklink and unpacked to yuyv
  * rgbVideo contains the received video rgbOutput
  *
  */
@@ -153,7 +153,6 @@ public:
 	Preprocessor(IPipeline* , uchar2* video, uchar2*key, uchar2*fill);
 	Preprocessor(uchar2* uvideo, uchar2* ukey, uchar2* fill);
 	void unpack(); // unpack yuv to yuyv
-	void convertToRGB(); // converts from yuyv to RGB
 	void create() override; // Some more pre-processing logic
 	void init() override;
 	void reload(uchar2* pVideo, uchar2* pKey, uchar2* pFill);
@@ -251,7 +250,6 @@ public:
 		this->yolo = y;
 		this->chromma = cm;
 	}
-
 	void create(); // combine chroma and yolov mask
 	uchar* output();
 };
@@ -263,14 +261,12 @@ public:
 class Keyer: public IPipeline
 {
 private:
-
+	uchar* finalMask;
+	double4 parabolic;
 public:
-
+	Keyer(IPipeline* obj, uchar* finalMask);
+	void create(); // combines the key, fill and video to video
 };
-
-
-
-
 
 
 inline void allocateMemory(void** devptr, long int size);

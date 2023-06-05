@@ -174,6 +174,23 @@ struct Distances
 
  
 
+double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double x3, double y3)
+{
+	//http://stackoverflow.com/questions/717762/how-to-calculate-the-vertex-of-a-parabola-given-three-points
+	double4 ret;
+	double denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
+	ret.x = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom;
+	ret.y = (x3*x3 * (y1 - y2) + x2 * x2 * (y3 - y1) + x1 * x1 * (y2 - y3)) / denom;
+	ret.z = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
+	if (x1 == 0 && x3 == 1024)
+		ret.w = 0;
+	else
+		ret.w = 1;
+
+	return ret;
+
+}
+
 //https://developer.apple.com/library/archive/technotes/tn2162/_index.html#v210
 //__global__ void yuyvUnpackedComBineData(ulong4* src_Video_Unapc, ulong4* src__Fill_Unapc, ulong4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload, int iBlendPos, unsigned long int iCutOff);
 __global__ void yuyvUnpackedComBineData(uint4* src_Video_Unapc, uint4* src__Fill_Unapc, uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload, int iBlendPos, double3 Parabolic, unsigned long int iCutOff);
@@ -3434,7 +3451,7 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 }
 
 
-__global__ void KeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, int iBlendPos0, double4 Parabolic0)
+__global__ void keyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, int iBlendPos0, double4 Parabolic0)
 {
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -3515,8 +3532,6 @@ __global__ void KeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* 
 	calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
 	calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
 }
-
-
 
 
 //

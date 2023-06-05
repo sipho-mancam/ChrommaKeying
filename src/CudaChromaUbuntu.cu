@@ -99,22 +99,22 @@ MouseData MouseData2;
 MouseData MouseData3;
 
 
-double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double x3, double y3)
-{
-	//http://stackoverflow.com/questions/717762/how-to-calculate-the-vertex-of-a-parabola-given-three-points
-	double4 ret;
-	double denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
-	ret.x = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom;
-	ret.y = (x3*x3 * (y1 - y2) + x2 * x2 * (y3 - y1) + x1 * x1 * (y2 - y3)) / denom;
-	ret.z = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
-	if (x1 == 0 && x3 == 1024)
-		ret.w = 0;
-	else
-		ret.w = 1;
-
-	return ret;
-
-}
+//double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double x3, double y3)
+//{
+//	//http://stackoverflow.com/questions/717762/how-to-calculate-the-vertex-of-a-parabola-given-three-points
+//	double4 ret;
+//	double denom = (x1 - x2) * (x1 - x3) * (x2 - x3);
+//	ret.x = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom;
+//	ret.y = (x3*x3 * (y1 - y2) + x2 * x2 * (y3 - y1) + x1 * x1 * (y2 - y3)) / denom;
+//	ret.z = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
+//	if (x1 == 0 && x3 == 1024)
+//		ret.w = 0;
+//	else
+//		ret.w = 1;
+//
+//	return ret;
+//
+//}
 
 
 int iUpdateIndex = 0;

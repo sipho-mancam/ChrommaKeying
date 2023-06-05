@@ -64,6 +64,30 @@ void IPipeline::checkCudaError(std::string action, std::string loc)
 	}
 }
 
+void IPipeline::convertToRGB()
+{
+
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
+
+
+	yuyvUnpackedToRGB<<<grid, block>>>(
+			this->augVideo,
+			this->rgbVideo,
+			this->iWidth/2,
+			this->iWidth,
+			this->iHeight,
+			this->key
+		);
+
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("Synchronize device", " host");
+
+}
+
 
 Input::Input(VideoIn* i): IPipeline()
 {
@@ -220,29 +244,7 @@ void Preprocessor::unpack()
 	this->checkCudaError("copy data", " augmented video buffer");
 }
 
-void Preprocessor::convertToRGB()
-{
 
-	const dim3 block(16, 16);
-	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
-
-
-	yuyvUnpackedToRGB<<<grid, block>>>(
-			this->augVideo,
-			this->rgbVideo,
-			this->iWidth/2,
-			this->iWidth,
-			this->iHeight,
-			this->key
-		);
-
-	this->cudaStatus = cudaGetLastError();
-	this->checkCudaError("Launch Kernel", "Device");
-
-	this->cudaStatus = cudaDeviceSynchronize();
-	this->checkCudaError("Synchronize device", " host");
-
-}
 
 void Preprocessor::create()
 {
@@ -450,6 +452,43 @@ uchar* MaskOut::output()
 	return this->chromma->output();
 }
 
+
+Keyer::Keyer(IPipeline* obj, uchar* mask): IPipeline(obj)
+{
+	this->finalMask = mask;
+	this->parabolic = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
+}
+
+void Keyer::create()
+{
+
+	const int dstAlignedWidth = (this->iWidth / 2);
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(dstAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+	const int maskWidth = this->iWidth;
+
+	keyAndFill<<<grid, block>>>(
+			this->augVideo, // Remember to replace with video after testing...
+			this->fill,
+			this->key,
+			this->iWidth,
+			this->iHeight,
+			dstAlignedWidth,
+			maskWidth,
+			this->finalMask,
+			0,
+			this->parabolic
+		);
+	this->cudaStatus = cudaGetLastError();
+	assert(this->cudaStatus==cudaSuccess);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	assert(this->cudaStatus==cudaSuccess);
+
+}
+
+
+
 inline void allocateMemory(void** devptr, long int size)
 {
 	cudaError_t cudaStatus = cudaMalloc(devptr, size);
@@ -528,6 +567,8 @@ void startPipeline()
 		ChrommaMask *cm = new ChrommaMask(pp, lt);
 		cm->load(chrommaMask, maskRGB);
 
+		Keyer *keyer = new Keyer(pp, cm->getMask());
+
 		while(uiContainer.dispatchKey() != 27)
 		{
 			in->run();
@@ -546,7 +587,6 @@ void startPipeline()
 				cm->output();
 				if(cm->isMask())
 				{
-
 					cm->toRGB();
 					cv::cuda::GpuMat mat;
 					mat.create(pp->getHeight(), pp->getWidth(), CV_8UC3);
@@ -556,8 +596,16 @@ void startPipeline()
 					cv::Mat prev;
 					mat.download(prev);
 					cv::imshow("Mask Preview", prev);
-
 				}
+			}
+
+			if(cm->isMask())
+			{
+				std::cout<<"I execute"<<std::endl;
+				keyer->create();
+				keyer->convertToRGB();
+				prev->load(keyer->getRGB());
+				prev->preview(mainWindow.getHandle());
 			}
 
 			if(keyingWindow.isCaptured())// frame is captured

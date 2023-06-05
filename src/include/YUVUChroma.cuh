@@ -96,6 +96,7 @@ public:
 
 };
 
+__global__ void keyAndFill(uint4* ,uint4* ,uint4* , int , int , int , int , uchar *, int , double4 );
 __global__ void Msk2RGB(uchar *, uchar *, uchar *, uchar3*, int , int , int );
 __global__ void yuyvUnpackedToRGB(uint4* ,  uchar3*, int , int , int ,  uint4*);
 __global__ void yuyvPackedToyuyvUnpacked(uint4* , uint4 *,int , int , int );
@@ -106,6 +107,8 @@ __global__ void yuyvUmPackedToRGB_lookup(uint4* , uchar3* , int , int , int , ui
 __global__ void yuyv_Unpacked_GenerateMask(uint4* , uchar*, uchar* , int , int, int , int ,int);
 __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* , uchar* , int , int , int , int ,int , int ,float ,int );//
 
+
+double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double x3, double y3);
 void PrepareYoloData(bool ,float );
 void SetOnAirLookup(int );
 bool Checkifnotoverplayer(cv::Rect );
