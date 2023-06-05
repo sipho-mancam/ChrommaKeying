@@ -96,6 +96,7 @@ void KeyingWindow::process()
 	if(this->rgbData==nullptr)return;
 	this->gMat.data = (uchar*)rgbData;
 	gMat.download(this->previewMat);
+	cv::resizeWindow(this->windowName, this->iWidth, this->iHeight);
 
 //	if(!this->captureKey)return;
 //	if(!this->mEnabled) return;
@@ -105,7 +106,6 @@ void KeyingWindow::show()
 {
 	this->process();
 	if(this->rgbData==nullptr)return;
-
 	cv::imshow(this->windowName, this->previewMat);
 }
 
@@ -134,7 +134,6 @@ void KeyingWindow::update()
 			roiLargeMat.copyTo(prevClone.rowRange(0, roiLargeMat.rows).colRange(0, roiLargeMat.cols));
 		}
 	}
-
 	cv::imshow(this->windowName, prevClone);
 	prevClone.release();
 }

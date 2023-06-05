@@ -66,11 +66,13 @@ class IMask: public IPipeline
 protected:
 	bool mask;
 	uchar* maskBuffer;
+	uchar3* maskRGB;
 public:
 	IMask(IPipeline *obj):IPipeline(obj)
 	{
 		this->mask = false;
 		this->maskBuffer = nullptr;
+		this->maskRGB = nullptr;
 		this->init();
 	}
 	void erode(int);
@@ -80,6 +82,10 @@ public:
 	virtual uchar* output() = 0;
 	void init() override;
 	void load(uchar* m){this->maskBuffer = m;}
+	void load(uchar* m, uchar3* rgb){this->maskBuffer = m; this->maskRGB = rgb;}
+	uchar* getMask(){return this->maskBuffer;}
+	virtual void toRGB(uchar3* rgb){};
+	uchar3* getMaskRGB(){return this->maskRGB;}
 
 };
 
@@ -206,6 +212,7 @@ public:
 	void update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws);
 	uchar* output(){return this->lookupBuffer;}
 	bool isLoaded(){return loaded;}
+	void clearTable();
 };
 
 
@@ -219,6 +226,8 @@ public:
 	bool isMask() {return this->mask;}
 	void update(){}
 	uchar* output() override;
+	void toRGB(uchar3* rgb) override;
+	void toRGB();
 };
 
 

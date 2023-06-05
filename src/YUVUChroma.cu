@@ -1030,6 +1030,24 @@ __global__ void MaskToRGB(uchar *maskDownload0, uchar *maskDownload1, uchar *mas
 	dst[y * dstAlignedWidth + (x * 2) + 1].z = maskDownload2[y * dstAlignedWidth + (x * 2) + 0];
 }
 
+__global__ void Msk2RGB(uchar *maskDownload0, uchar *maskDownload1, uchar *maskDownload2, uchar3* dst, int srcAlignedWidth, int dstAlignedWidth, int height)
+{
+
+	const int x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= srcAlignedWidth || y >= height)
+		return;
+
+	dst[y * dstAlignedWidth + (x * 2) + 0].x = maskDownload0[y * dstAlignedWidth + (x * 2) + 0];
+	dst[y * dstAlignedWidth + (x * 2) + 0].y = maskDownload1[y * dstAlignedWidth + (x * 2) + 0];
+	dst[y * dstAlignedWidth + (x * 2) + 0].z = maskDownload2[y * dstAlignedWidth + (x * 2) + 0];
+
+	dst[y * dstAlignedWidth + (x * 2) + 1].x = maskDownload0[y * dstAlignedWidth + (x * 2) + 0];
+	dst[y * dstAlignedWidth + (x * 2) + 1].y = maskDownload1[y * dstAlignedWidth + (x * 2) + 0];
+	dst[y * dstAlignedWidth + (x * 2) + 1].z = maskDownload2[y * dstAlignedWidth + (x * 2) + 0];
+}
+
 
 
 __global__ void yuyvUnPackedToRGB(uint4* src_Unapc, uchar3* dst,int srcAlignedWidth, int dstAlignedWidth, int height)
@@ -3416,7 +3434,7 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 }
 
 
-__global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, int iBlendPos0, double4 Parabolic0)
+__global__ void KeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* src__Key_Unapc, int width, int height, int srcAlignedWidth, int dstAlignedWidth, uchar *maskUpload0, int iBlendPos0, double4 Parabolic0)
 {
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -3464,8 +3482,6 @@ __global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4*
 		macroPxKeyRight = &src__Key_Unapc[(y)* srcAlignedWidth + x];
 	}
 
-
-
 	if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0 && maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
 	{
 		if (Parabolic.w)
@@ -3481,38 +3497,17 @@ __global__ void kKeyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4*
 	}
 	else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0)
 	{
-		if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] == 0)
+		if (Parabolic.w)
 		{
-			if (Parabolic.w)
-			{
-				dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+			dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
 
-				double Lum = (macroPxVideo->y);
-				double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
-				if (CalculateLumKeyVal < 0)
-					return;
-
-				dBlendPos = dBlendPos * CalculateLumKeyVal;
-			}
-			else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+			double Lum = (macroPxVideo->y);
+			double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
+			if (CalculateLumKeyVal < 0)
+				return;
+			dBlendPos = dBlendPos * CalculateLumKeyVal;
 		}
-		else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] != 0)
-		{
-			if (maskUpload0[y * dstAlignedWidth + (x * 2) + 1] == 0)
-			{
-				if (Parabolic.w)
-				{
-					dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
-					double Lum = (macroPxVideo->w);
-					double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
-					if (CalculateLumKeyVal < 0)
-						return;
-
-					dBlendPos = dBlendPos * CalculateLumKeyVal;
-				}
-				else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 1] / 255.0 * dBlendPos;
-			}
-		}
+		else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
 	}
 
 	calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);

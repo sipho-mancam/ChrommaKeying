@@ -277,7 +277,6 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
 						);
 
-
 		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic /2); x++)
 		{
 			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
@@ -306,10 +305,15 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 	}
 }
 
+void LookupTable::clearTable()
+{
+	this->cudaStatus = cudaMemset(this->lookupBuffer, 0, this->iWidth*this->iHeight*sizeof(uchar));
+	assert(this->cudaStatus==cudaSuccess);
+}
+
 void IMask::init()
 {
-//	this->cudaStatus = cudaMalloc((void**)this->maskBuffer, this->iHeight*this->iWidth*sizeof(uchar));
-//	assert(this->cudaStatus==cudaSuccess);
+
 }
 
 void IMask::erode(int size)
@@ -380,6 +384,52 @@ uchar* ChrommaMask::output()
 	return this->maskBuffer;
 }
 
+void ChrommaMask::toRGB(uchar3* rgb/*Cuda Pointer*/)
+{
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
+	const int dstAlignedWidth = this->iWidth;
+
+	Msk2RGB <<<grid, block>>> (
+			this->maskBuffer,
+			this->maskBuffer,
+			this->maskBuffer,
+			rgb,
+			this->iWidth/2, // source aligned width
+			dstAlignedWidth,
+			this->iHeight
+			);
+	this->cudaStatus = cudaGetLastError();
+	assert(this->cudaStatus==cudaSuccess);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	assert(this->cudaStatus==cudaSuccess);
+}
+
+void ChrommaMask::toRGB()
+{
+	if(this->maskRGB==nullptr) return;
+	if(!this->mask) return;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
+	const int dstAlignedWidth = this->iWidth;
+
+	Msk2RGB <<<grid, block>>> (
+			this->maskBuffer,
+			this->maskBuffer,
+			this->maskBuffer,
+			this->maskRGB,
+			this->iWidth/2, // source aligned width
+			dstAlignedWidth,
+			this->iHeight
+			);
+	this->cudaStatus = cudaGetLastError();
+	assert(this->cudaStatus==cudaSuccess);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	assert(this->cudaStatus==cudaSuccess);
+}
+
 void YoloMask::create()
 {
 
@@ -410,7 +460,7 @@ void startPipeline()
 {
 	uchar *chrommaLookupBuffer, *chrommaMask;
 	uchar2 *pVideo, *pKey, *pFill;
-	uchar3* rgbVideo, *vSnapshot;
+	uchar3* rgbVideo, *vSnapshot, *maskRGB;
 	uint4 *video, *key, *fill, *aVideo, *snapShotV;
 
 	VideoIn decklink;
@@ -435,7 +485,8 @@ void startPipeline()
 	allocateMemory((void**)&aVideo, in->getFrameSize());
 	allocateMemory((void**)&snapShotV, in->getFrameSize());
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
-	allocateMemory((void**)& rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
 
 	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
 	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
@@ -475,7 +526,7 @@ void startPipeline()
 		lt->load(chrommaLookupBuffer, snapShotV);
 
 		ChrommaMask *cm = new ChrommaMask(pp, lt);
-		cm->load(chrommaMask);
+		cm->load(chrommaMask, maskRGB);
 
 		while(uiContainer.dispatchKey() != 27)
 		{
@@ -495,9 +546,17 @@ void startPipeline()
 				cm->output();
 				if(cm->isMask())
 				{
-					Preview* maskPrev = new Preview(cm);
-					maskPrev->load(cm->output());
-					maskPrev->preview(maskPreview.getHandle());
+
+					cm->toRGB();
+					cv::cuda::GpuMat mat;
+					mat.create(pp->getHeight(), pp->getWidth(), CV_8UC3);
+					mat.step = 5760;
+					mat.data = (uchar*)cm->getMaskRGB();
+
+					cv::Mat prev;
+					mat.download(prev);
+					cv::imshow("Mask Preview", prev);
+
 				}
 			}
 
