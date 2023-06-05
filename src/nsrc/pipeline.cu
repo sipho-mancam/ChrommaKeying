@@ -273,28 +273,31 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 
 		const dim3 block(16, 16);
 		const dim3 grid(
-				iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.x),
-				iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
-				);
+						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.x),
+						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
+						);
 
-		this->mtx->lock();
-		std::cout<<"[info]: Thread locked ..."<<std::endl;
+//		std::cout<<"[info]: Thread locked ..."<<std::endl;
 
-		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic/2); x++)
+		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic /2); x++)
 		{
 			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
 			{
+//				std::cout<<"x y "<<x<<" "<<y<<std::endl;
 				UpdateLookupFrom_XY_Posision_Diffrent_Scaling <<<grid, block>>> (
 						this->snapShot,
 						this->lookupBuffer,
 						x, y,
-						(this->iHeight / 2),
-						ws["Outer Diam"]*2,
-						ws["UV Diam"]*2,
-						ws["E Lum"],
+						(this->iWidth / 2),
+						1,10,5,
+//						ws["Outer Diam"]*2,
+//						ws["UV Diam"]*2,
+//						ws["E Lum"],
 						ScalingValue,
 						maxRecSize
 						);
+				this->cudaStatus = cudaGetLastError();
+				this->checkCudaError("Launch kernel", "Device");
 			}
 		}
 
@@ -302,9 +305,7 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
 		this->loaded = true;
-		this->mtx->unlock();
 	}
-	std::cout<<"Updated"<<std::endl;
 }
 
 void IMask::init()
@@ -439,24 +440,21 @@ void startPipeline()
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)& rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
 
-	allocateMemory((void**)&chrommaLookupBuffer, (long int)4*pow(2, 10)*sizeof(uchar));
+	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
 
 	WindowsContainer uiContainer;
 
 	WindowI mainWindow("Main");
 
-	WindowI snapShotWindow("Snapshot");
+	KeyingWindow keyingWindow("Keying Window", in->getWidth(), in->getHeight());
 
 	SettingsWindow settings("Setting");
 
-	mainWindow.enableMouse();
+	keyingWindow.enableMouse();
 
 	uiContainer.addWindow(&mainWindow);
-	uiContainer.addWindow(&snapShotWindow);
+	uiContainer.addWindow(&keyingWindow);
 	uiContainer.addWindow(&settings);
-
-
-
 
 	in->load(pVideo, pKey, pFill);
 
@@ -466,52 +464,42 @@ void startPipeline()
 	{
 		Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
 		pp->load(video, key, fill, aVideo, rgbVideo);
-		pp->unpack();
-		pp->convertToRGB();
-
-		uiContainer.dispatchKey();
 
 		SnapShot *ss = new SnapShot(pp);
 		ss->load(vSnapshot, snapShotV);
-		ss->takeSnapShot();
 
 		Preview *prev = new Preview(ss);
 		prev->load(ss->getSnapShot());
-		prev->preview(mainWindow.getHandle());
 
 		LookupTable *lt = new LookupTable(ss);
-
 		lt->load(chrommaLookupBuffer, snapShotV);
 
-		int i = 0;
 		while(uiContainer.dispatchKey() != 27)
 		{
 			in->run();
 			pp->reload(in->getPVideo(), in->getPKey(), in->getPFill());
 			pp->unpack();
 			pp->convertToRGB();
-			ss->takeSnapShot();
 
-			prev->load(ss->getSnapShot());
+			prev->load(pp->getRGB());
 			prev->preview(mainWindow.getHandle());
 
-			i++;
-
-			printf("%d\n", snapShotWindow.getPressKey());
-			if(uiContainer.dispatchKey() == 'q')
+			if(uiContainer.getKey() == 'q')
 			{
-				prev->load(ss->getSnapShot());
-				prev->preview(snapShotWindow.getHandle());
+				ss->takeSnapShot();
+				keyingWindow.loadImage(ss->getSnapShot());
+				keyingWindow.show();
 			}
 
-			if(snapShotWindow.isCaptured())// frame is captured
+			if(keyingWindow.isCaptured())// frame is captured
 			{
-				snapShotWindow.enableMouse();
-				lt->update(snapShotWindow.isCaptured(), snapShotWindow.getMD(), settings.getTrackbarValues());
+				lt->update(keyingWindow.isCaptured(), keyingWindow.getMD(), settings.getTrackbarValues());
 			}
 
-
+			keyingWindow.update();
 		}
+
+
 
 	}
 

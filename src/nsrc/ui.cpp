@@ -14,9 +14,9 @@
 
 void mouseCallback(int event, int x, int y, int flags, void* data)
 {
-	MouseData* md = (MouseData*)data;
 
-	static int iRecsize = 4;
+	MouseData* md = (MouseData*)data;
+	static int iRecsize = 10;
 	Rect tt = getWindowImageRect(md->windowName);
 	double x1 = double(x)/(double)(tt.width)  * 1920.0;//window correction
 	double y1 = double(y)/(double)(tt.height) * 1080.0;//window correction
@@ -70,11 +70,11 @@ void mouseCallback(int event, int x, int y, int flags, void* data)
 
 		case EVENT_MOUSEMOVE:
 			md->iXUpDynamic = x1-iRecsize;
-			md->iYUpDynamic = y1- iRecsize+4;
+			md->iYUpDynamic = y1-iRecsize+4;
 			md->iXDownDynamic = x1+ iRecsize;
 			md->iYDownDynamic = y1+ iRecsize+4;
-			md->x=x1;
-			md->y=y1;
+			md->x=x;
+			md->y=y;
 			break;
 	}
 }
@@ -88,6 +88,46 @@ void updateTrackbar(int pos, void* settingsWindowOb)
 void WindowI::setMouseCB(void* md, void (*cb_)(int, int, int, int, void*))
 {
 	cv::setMouseCallback(this->windowName, cb_, md);
+}
+
+
+void KeyingWindow::process()
+{
+	if(this->rgbData==nullptr)return;
+	this->gMat.data = (uchar*)rgbData;
+	gMat.download(this->previewMat);
+
+	if(!this->captureKey)return;
+	if(!this->mEnabled) return;
+
+
+	// Draw a rectangle around mouse
+	rectangle(this->previewMat, Point(this->mouseData.iXUpDynamic, mouseData.iYUpDynamic),
+				Point(mouseData.iXDownDynamic, mouseData.iYDownDynamic), Scalar(255, 255, 255), 1, 8, 0);
+
+}
+
+void KeyingWindow::show()
+{
+	this->process();
+	if(this->rgbData==nullptr)return;
+
+	cv::imshow(this->windowName, this->previewMat);
+}
+
+void KeyingWindow::update()
+{
+//	std::cout<<"I execute"<<std::endl;
+	int rectangleSize = 25;
+	cv::Mat prevClone = this->previewMat.clone();
+	if(this->rgbData==nullptr)return;
+	cv::rectangle(prevClone, Point(this->mouseData.x-rectangleSize, mouseData.y-rectangleSize),
+					Point(mouseData.x+rectangleSize, mouseData.y+rectangleSize), Scalar(255, 255, 255), 1, 8, 0);
+	cv::circle(prevClone, cv::Point(mouseData.x, mouseData.y), sqrt((pow(rectangleSize, 2)+pow(rectangleSize, 2))), cv::Scalar(255,255,255),
+			3, 8, 0);
+
+	cv::imshow(this->windowName, prevClone);
+	prevClone.release();
 }
 
 
@@ -122,8 +162,9 @@ void WindowsContainer::addWindow(WindowI *w)
 
 int WindowsContainer::dispatchKey()
 {
+	this->pressedKey = waitKey(2);
 	if(windows.empty())return -1;
-	this->pressedKey = waitKey(10);
+	if(this->pressedKey == -1)return -1;
 
 	for(auto& window: this->windows)
 	{

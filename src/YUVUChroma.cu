@@ -2725,17 +2725,16 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent(uint4* src_Video_Unapc, ui
 __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_Unapc, uchar* LookupTable, int PixelPosX, int PixelPosY, int srcAlignedWidth, int iOuter_Diameter,int iUV_Diameter, int iLum_Diameter,float dSScaling,int iMaxKeyVal)//
 {
 
-
-
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (x >= ((iOuter_Diameter + iUV_Diameter) ) || y >= ((iOuter_Diameter + iUV_Diameter)))
 		return;
 
+
 	uint4 *macroPxVideo;
 	macroPxVideo = &src_Video_Unapc[PixelPosY * srcAlignedWidth + PixelPosX];
-	//printf("%d %d %d %d\n",macroPxVideo->x,macroPxVideo->z,macroPxVideo->y);
+
 	float fCenter = (iOuter_Diameter + iUV_Diameter) / 2;
 	float fx = x - fCenter;
 	float fy = y - fCenter;
@@ -2750,7 +2749,7 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 		KeyValue = dSScaling*fScaleDistance;
 	}
 
-	
+
 	uchar uKeyValue = KeyValue;
 	if (uKeyValue == 0)
 		return;
@@ -2758,16 +2757,16 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 	int myFX = macroPxVideo->x + fx ;
 	int myFy = macroPxVideo->z + fy ;
 
-	// printf("%f\n",fCenter );
 	for (int c = -iLum_Diameter; c < iLum_Diameter; c++)
 	{
 	    double bitpos1a = GetBitPos3(make_double3(myFX, myFy, macroPxVideo->y+ c ));
 
 		while (GetBit3(bitpos1a, LookupTable)< uKeyValue)
 		{
-		
+
 			SetBit3(bitpos1a, LookupTable, uKeyValue);
 		}
+
 	}
 	for (int c = -iLum_Diameter; c < iLum_Diameter; c++)
 	{
@@ -2778,6 +2777,7 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 			SetBit3(bitpos1a, LookupTable, uKeyValue);
 		}
 	}
+
 	macroPxVideo->w=0;
 	macroPxVideo->x=0;
 	macroPxVideo->y=0;

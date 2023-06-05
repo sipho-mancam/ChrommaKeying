@@ -19,6 +19,8 @@
 #include <opencv2/opencv.hpp>
 #include <unordered_map>
 
+#define CUDA_LOOKUP_SIZE 1073741824
+
 
 class IPipeline
 {
@@ -46,6 +48,7 @@ public:
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
 	uint4* getKey(){ return this->key;}
+	uchar3* getRGB(){return this->rgbVideo;}
 	std::mutex* getMutex(){return this->mtx;}
 	long int getFrameSize(){return this->frameSizeUnpacked;}
 	long int getPFrameSize(){return this->frameSizePacked;}

@@ -59,6 +59,31 @@ public:
 	}
 	bool isCaptured(){return this->captureKey;}
 	void setKeyCB(void(*kCB)(int));
+	virtual void update(){}
+	virtual ~WindowI() = default;
+};
+
+class KeyingWindow: public WindowI
+{
+private:
+	uchar3* rgbData; // this data is in the GPU memory
+	cv::Mat previewMat;
+	cv::cuda::GpuMat gMat;
+	int iWidth, iHeight;
+	void process(); // apply operations to the image buffer
+public:
+	KeyingWindow(std::string windowHandle, int iW, int iH): WindowI(windowHandle)
+	{
+		this->iHeight = iH;
+		this->iWidth = iW;
+		rgbData = nullptr;
+		this->gMat.create(this->iHeight, this->iWidth, CV_8UC3);
+		this->gMat.step = 5760;
+	}
+	void loadImage(uchar3* d){ this->rgbData = d;}
+	void show();
+	void update() override;// update graphics on the screen
+
 };
 
 class SettingsWindow :public WindowI
@@ -119,6 +144,7 @@ public:
 	void removeWindow(std::string windowHandle);
 	int dispatchKey();
 	WindowI * getWindow(std::string windowHandle);
+	int getKey(){return this->pressedKey;}
 };
 
 
