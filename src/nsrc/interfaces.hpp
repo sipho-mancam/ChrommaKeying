@@ -77,8 +77,10 @@ public:
 	void dilate(int);
 	virtual ~IMask() = default;
 	virtual bool isMask() = 0;
-	void init() override;
 	virtual uchar* output() = 0;
+	void init() override;
+	void load(uchar* m){this->maskBuffer = m;}
+
 };
 
 
@@ -97,6 +99,7 @@ public:
 	}
 
 	void load(uchar3* rgb){ this->rgbData = rgb;}
+	void load(uchar* mask){ this->rgbData = (uchar3*)mask;}
 
 	void preview(std::string windowHandle)
 	{
@@ -105,11 +108,8 @@ public:
 		mat.data = (uchar*)this->rgbData;
 		mat.download(this->prev);
 		cv::imshow(windowHandle, this->prev);
-
 		cv::waitKey(5);
 	}
-
-
 };
 
 /****

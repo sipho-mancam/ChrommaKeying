@@ -79,6 +79,7 @@ public:
 		rgbData = nullptr;
 		this->gMat.create(this->iHeight, this->iWidth, CV_8UC3);
 		this->gMat.step = 5760;
+		cv::setWindowProperty(this->windowName, WND_PROP_ASPECT_RATIO,WINDOW_FULLSCREEN);
 	}
 	void loadImage(uchar3* d){ this->rgbData = d;}
 	void show();
@@ -145,6 +146,8 @@ public:
 	int dispatchKey();
 	WindowI * getWindow(std::string windowHandle);
 	int getKey(){return this->pressedKey;}
+
+	~WindowsContainer();
 };
 
 

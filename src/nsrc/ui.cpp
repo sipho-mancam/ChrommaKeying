@@ -16,37 +16,37 @@ void mouseCallback(int event, int x, int y, int flags, void* data)
 {
 
 	MouseData* md = (MouseData*)data;
-	static int iRecsize = 10;
+	static int iRecsize = 20;
 	Rect tt = getWindowImageRect(md->windowName);
-	double x1 = double(x)/(double)(tt.width)  * 1920.0;//window correction
-	double y1 = double(y)/(double)(tt.height) * 1080.0;//window correction
+	double x1 = x; //double(x)/(double)(tt.width)  * 1920.0;//window correction
+	double y1 = y; //double(y)/(double)(tt.height) * 1080.0;//window correction
 
 	switch (event)
 	{
 		case EVENT_MOUSEWHEEL ://!< positive and negative values mean forward and backward scrolling, respectively.
 			if (flags > 0)
 			{
-				if(iRecsize>1)
-					iRecsize--;
+
+					iRecsize += iRecsize>1?-1:0;
 			}
 			else
 			{
-				iRecsize += iRecsize<19? 1 : -iRecsize+20;
+				iRecsize += iRecsize<29? 1 : -iRecsize+30;
 			}
 
 			md->iXUpDynamic = x1 - iRecsize;
-			md->iYUpDynamic = y1 - iRecsize + 4;
+			md->iYUpDynamic = y1 - iRecsize;
 			md->iXDownDynamic = x1 + iRecsize;
-			md->iYDownDynamic = y1 + iRecsize + 4;
+			md->iYDownDynamic = y1 + iRecsize;
 			break;
 
 		case EVENT_LBUTTONDOWN:
 			md->iXDown = x1;
 			md->iYDown = y1;
 			md->iXUpDynamic = x1 - iRecsize;
-			md->iYUpDynamic = y1 - iRecsize + 4;
+			md->iYUpDynamic = y1 - iRecsize;
 			md->iXDownDynamic = x1 + iRecsize;
-			md->iYDownDynamic = y1 + iRecsize + 4;
+			md->iYDownDynamic = y1 + iRecsize;
 			md->bHandleLDown = true;
 			break;
 
@@ -69,10 +69,10 @@ void mouseCallback(int event, int x, int y, int flags, void* data)
 			break;
 
 		case EVENT_MOUSEMOVE:
-			md->iXUpDynamic = x1-iRecsize;
-			md->iYUpDynamic = y1-iRecsize+4;
-			md->iXDownDynamic = x1+ iRecsize;
-			md->iYDownDynamic = y1+ iRecsize+4;
+			md->iXUpDynamic = x1 - iRecsize;
+			md->iYUpDynamic = y1 - iRecsize;
+			md->iXDownDynamic = x1 + iRecsize;
+			md->iYDownDynamic = y1 + iRecsize;
 			md->x=x;
 			md->y=y;
 			break;
@@ -97,14 +97,8 @@ void KeyingWindow::process()
 	this->gMat.data = (uchar*)rgbData;
 	gMat.download(this->previewMat);
 
-	if(!this->captureKey)return;
-	if(!this->mEnabled) return;
-
-
-	// Draw a rectangle around mouse
-	rectangle(this->previewMat, Point(this->mouseData.iXUpDynamic, mouseData.iYUpDynamic),
-				Point(mouseData.iXDownDynamic, mouseData.iYDownDynamic), Scalar(255, 255, 255), 1, 8, 0);
-
+//	if(!this->captureKey)return;
+//	if(!this->mEnabled) return;
 }
 
 void KeyingWindow::show()
@@ -117,14 +111,29 @@ void KeyingWindow::show()
 
 void KeyingWindow::update()
 {
-//	std::cout<<"I execute"<<std::endl;
-	int rectangleSize = 25;
+	int rectangleSize = abs(this->mouseData.iXDownDynamic - this->mouseData.x); // the width/2 and height/2 of the rectangle (square)
 	cv::Mat prevClone = this->previewMat.clone();
 	if(this->rgbData==nullptr)return;
 	cv::rectangle(prevClone, Point(this->mouseData.x-rectangleSize, mouseData.y-rectangleSize),
 					Point(mouseData.x+rectangleSize, mouseData.y+rectangleSize), Scalar(255, 255, 255), 1, 8, 0);
-	cv::circle(prevClone, cv::Point(mouseData.x, mouseData.y), sqrt((pow(rectangleSize, 2)+pow(rectangleSize, 2))), cv::Scalar(255,255,255),
+	cv::circle(prevClone, cv::Point(mouseData.x, mouseData.y), sqrt((pow(rectangleSize, 2)+pow(rectangleSize, 2)))+4, cv::Scalar(255,255,255),
 			3, 8, 0);
+
+	cv::Rect roi(this->mouseData.iXUpDynamic, this->mouseData.iYUpDynamic, rectangleSize*2, rectangleSize*2);
+
+	if((0 <= roi.x && 0 <= roi.width && roi.x + roi.width <= prevClone.cols &&
+		0 <= roi.y && 0 <= roi.height && roi.y + roi.height <= prevClone.rows))
+	{
+		Mat roiMat = prevClone(roi);
+		Mat roiLargeMat;
+		Size ssize = roiMat.size();
+		if (!ssize.empty())
+		{
+			cv::resize(roiMat, roiLargeMat, Size((rectangleSize) * 25, (rectangleSize) * 25), 0, 0, INTER_NEAREST);
+
+			roiLargeMat.copyTo(prevClone.rowRange(0, roiLargeMat.rows).colRange(0, roiLargeMat.cols));
+		}
+	}
 
 	cv::imshow(this->windowName, prevClone);
 	prevClone.release();
@@ -190,4 +199,9 @@ WindowI* WindowsContainer::getWindow(std::string windowHandle)
 	}catch(std::exception& err){
 		return nullptr;
 	}
+}
+
+WindowsContainer::~WindowsContainer()
+{
+	cv::destroyAllWindows();
 }

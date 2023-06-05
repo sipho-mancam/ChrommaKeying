@@ -277,13 +277,11 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
 						);
 
-//		std::cout<<"[info]: Thread locked ..."<<std::endl;
 
 		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic /2); x++)
 		{
 			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
 			{
-//				std::cout<<"x y "<<x<<" "<<y<<std::endl;
 				UpdateLookupFrom_XY_Posision_Diffrent_Scaling <<<grid, block>>> (
 						this->snapShot,
 						this->lookupBuffer,
@@ -310,8 +308,8 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 
 void IMask::init()
 {
-	this->cudaStatus = cudaMalloc((void**)this->maskBuffer, this->iHeight*this->iWidth*sizeof(uchar));
-	assert(this->cudaStatus==cudaSuccess);
+//	this->cudaStatus = cudaMalloc((void**)this->maskBuffer, this->iHeight*this->iWidth*sizeof(uchar));
+//	assert(this->cudaStatus==cudaSuccess);
 }
 
 void IMask::erode(int size)
@@ -348,14 +346,13 @@ ChrommaMask::ChrommaMask(IPipeline* obj, LookupTable* t): IMask(obj)
 void ChrommaMask::create()
 {
 	if(!table->isLoaded())return;
-	this->mtx->lock();
 	this->mask = false;
 	const int dstAlignedWidth = this->iWidth;
 	const int srcAlignedWidth = this->iWidth/2;
 	const dim3 block(16, 16);
 	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
 
-	yuyv_Unpacked_GenerateMask <<<grid, block, 0, this->stream>>> (
+	yuyv_Unpacked_GenerateMask <<<grid, block>>> (
 			(uint4*)this->augVideo,
 			this->maskBuffer,
 			this->table->output(),
@@ -365,21 +362,21 @@ void ChrommaMask::create()
 			dstAlignedWidth,
 			0
 			);
+	this->cudaStatus = cudaGetLastError();
+	assert(this->cudaStatus==cudaSuccess);
 
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("synchronize host", "yuyvGenerateMask");
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->mask = true;
-
-	this->mtx->unlock();
 }
 
 uchar* ChrommaMask::output()
 {
-	if(!this->mask)return nullptr;
 	this->create();
-	this->update();
+	if(!this->mask)return nullptr;
+	this->update(); // clean it up and post-process it.
 	return this->maskBuffer;
 }
 
@@ -411,7 +408,7 @@ inline void allocateMemory(void** devptr, long int size)
 
 void startPipeline()
 {
-	uchar *chrommaLookupBuffer;
+	uchar *chrommaLookupBuffer, *chrommaMask;
 	uchar2 *pVideo, *pKey, *pFill;
 	uchar3* rgbVideo, *vSnapshot;
 	uint4 *video, *key, *fill, *aVideo, *snapShotV;
@@ -420,14 +417,14 @@ void startPipeline()
 
 	Input *in = new Input(&decklink);
 
-	//This is for memory alignment
-	/*****
-	 * It seems allocating device memory inside an object causes misalignment,
-	 * Reason:
-	 * 	still need to read more and find out why.
-	 * Solution:
-	 * 	Declare memory outside and load it inside, but keep the rest of the flow fixed.
-	 */
+	/*************************************************************************************
+	 * This is for memory alignment                                                      *
+	 * It seems allocating device memory inside an object causes misalignment,           *
+	 * Reason:                                                                           *
+	 * 	still need to read more and find out why.                                        *
+	 * Solution:                                                                         *
+	 * 	Declare memory outside and load it inside, but keep the rest of the flow fixed.  *
+	 *************************************************************************************/
 	allocateMemory((void**)&pVideo,in->getPFrameSize());
 	allocateMemory((void**)&pKey, in->getPFrameSize());
 	allocateMemory((void**)&pFill, in->getPFrameSize());
@@ -440,15 +437,18 @@ void startPipeline()
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)& rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
 
+	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
 	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
 
 	WindowsContainer uiContainer;
 
-	WindowI mainWindow("Main");
+	WindowI mainWindow("Main"); // plays the video playback
 
-	KeyingWindow keyingWindow("Keying Window", in->getWidth(), in->getHeight());
+	KeyingWindow keyingWindow("Keying Window", in->getWidth(), in->getHeight()); // keying window
 
-	SettingsWindow settings("Setting");
+	SettingsWindow settings("Setting"); // settings
+
+	WindowI maskPreview("Mask Preview");
 
 	keyingWindow.enableMouse();
 
@@ -474,6 +474,9 @@ void startPipeline()
 		LookupTable *lt = new LookupTable(ss);
 		lt->load(chrommaLookupBuffer, snapShotV);
 
+		ChrommaMask *cm = new ChrommaMask(pp, lt);
+		cm->load(chrommaMask);
+
 		while(uiContainer.dispatchKey() != 27)
 		{
 			in->run();
@@ -489,6 +492,13 @@ void startPipeline()
 				ss->takeSnapShot();
 				keyingWindow.loadImage(ss->getSnapShot());
 				keyingWindow.show();
+				cm->output();
+				if(cm->isMask())
+				{
+					Preview* maskPrev = new Preview(cm);
+					maskPrev->load(cm->output());
+					maskPrev->preview(maskPreview.getHandle());
+				}
 			}
 
 			if(keyingWindow.isCaptured())// frame is captured
