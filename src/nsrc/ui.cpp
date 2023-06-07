@@ -90,6 +90,25 @@ void WindowI::setMouseCB(void* md, void (*cb_)(int, int, int, int, void*))
 	cv::setMouseCallback(this->windowName, cb_, md);
 }
 
+int WindowI::parseKey()
+{
+	if(!this->keyEnabled) return -1;
+	switch(this->key)
+	{
+	case 'q':
+		return WINDOW_EVENT_CAPTURE;
+		break;
+	case 'Q':
+		return WINDOW_EVENT_CAPTURE;
+		break;
+	case 's':
+		return WINDOW_EVENT_SAVE_IMAGE;
+		break;
+	default:
+		return -1;
+	}
+}
+
 
 void KeyingWindow::process()
 {
@@ -170,13 +189,25 @@ void WindowsContainer::addWindow(WindowI *w)
 
 int WindowsContainer::dispatchKey()
 {
-	this->pressedKey = waitKey(2);
+	this->pressedKey = waitKey(1);
 	if(windows.empty())return -1;
 	if(this->pressedKey == -1)return -1;
+	if(this->pressedKey == WINDOW_EVENT_EXIT)
+	{
+		this->eventQueue.push(WINDOW_EVENT_EXIT);
+		return WINDOW_EVENT_EXIT;
+	}
+
+	int event;
 
 	for(auto& window: this->windows)
 	{
 		window.second->setKey(pressedKey);
+		event = window.second->parseKey();
+		if(event != -1)
+		{
+			this->eventQueue.push(event);
+		}
 	}
 
 	return this->pressedKey;
@@ -197,6 +228,30 @@ WindowI* WindowsContainer::getWindow(std::string windowHandle)
 		return windows[windowHandle];
 	}catch(std::exception& err){
 		return nullptr;
+	}
+}
+
+void WindowsContainer::dispatchEvent()
+{
+	if(!this->eventQueue.empty())
+	{
+		this->currentEvent = this->eventQueue.front();
+		this->eventQueue.pop();
+	}
+	else
+		this->currentEvent = -1;
+}
+
+int WindowsContainer::getEvent()
+{
+	return this->currentEvent;
+}
+
+void WindowsContainer::updateWindows()
+{
+	for(auto &window : this->windows)
+	{
+		window.second->update();
 	}
 }
 

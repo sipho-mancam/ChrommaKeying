@@ -53,6 +53,10 @@
 #include "PosisionUpdateUDP.h"
 #include <thread>
 
+
+#include "interfaces.hpp"
+#include <ui.hpp>
+
 #define MAX_PATH 260
 
 extern void initPosUDPData();
@@ -978,7 +982,7 @@ bool GetAsyncKeyState(int checkpressed)
 void DrawMouseText(Mat *DrawingMat,string text,cv::Point r)
 {
 	char buffer[MAX_PATH];
-	sprintf(buffer, "%d %d\n", MouseData1.x,MouseData1.y);
+	sprintf(buffer, "%d %d\n", MouseData1.x, MouseData1.y);
 	Mat img=*DrawingMat;
 	int fontFace = FONT_HERSHEY_PLAIN;
 	double fontScale =1.0;
@@ -997,7 +1001,113 @@ int main()
 	static int iFrameIndex=0;
 	StartMonitor();
 
-	startPipeline();
+	uchar *chrommaLookupBuffer, *chrommaMask;
+	uchar2 *pVideo, *pKey, *pFill;
+	uchar3* rgbVideo, *vSnapshot, *maskRGB;
+	uint4 *video, *key, *fill, *aVideo, *snapShotV;
+
+	VideoIn decklink;
+
+	Input *in = new Input(&decklink);
+	/*************************************************************************************
+	 * This is for memory alignment                                                      *
+	 * It seems allocating device memory inside an object causes mis-alignment,           *
+	 * Reason:                                                                           *
+	 * 	still need to read more and find out why.                                        *
+	 * Solution:                                                                         *
+	 * 	Declare memory outside and load it inside, but keep the rest of the flow fixed.  *
+	 *************************************************************************************/
+	allocateMemory((void**)&pVideo,in->getPFrameSize());
+	allocateMemory((void**)&pKey, in->getPFrameSize());
+	allocateMemory((void**)&pFill, in->getPFrameSize());
+
+	allocateMemory((void**)&video, in->getFrameSize());
+	allocateMemory((void**)&key, in->getFrameSize());
+	allocateMemory((void**)&fill, in->getFrameSize());
+	allocateMemory((void**)&aVideo, in->getFrameSize());
+	allocateMemory((void**)&snapShotV, in->getFrameSize());
+
+	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
+	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
+
+	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
+
+	in->load(pVideo, pKey, pFill);
+
+	while(!in->isOutput())
+		in->run();
+
+	Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
+	pp->load(video, key, fill, aVideo, rgbVideo);
+
+	SnapShot *ss = new SnapShot(pp);
+	ss->load(vSnapshot, snapShotV);
+
+	Preview *prev = new Preview(ss);
+	prev->load(ss->getSnapShot());
+
+	LookupTable *lt = new LookupTable(ss);
+	lt->load(chrommaLookupBuffer, snapShotV);
+
+	ChrommaMask *cm = new ChrommaMask(pp, lt);
+	cm->load(chrommaMask, maskRGB);
+
+	YoloMask *yolo  = new YoloMask(pp);
+
+	Keyer *keyer = new Keyer(pp, cm->getMask());
+
+
+	/******************************
+	 * UI                         *
+	 ******************************/
+	WindowsContainer uiContainer;
+
+	WindowI mainWindow(WINDOW_NAME_MAIN); // plays the video playback
+	KeyingWindow keyingWindow(WINDOW_NAME_KEYING, in->getWidth(), in->getHeight()); // keying window
+	SettingsWindow settings(WINDOW_NAME_SETTINGS); // settings
+	WindowI maskPreview(WINDOW_NAME_MASK);
+	WindowI outputWindow(WINDOW_NAME_OUTPUT);
+
+	keyingWindow.enableMouse();
+	keyingWindow.enableKeys();
+
+	uiContainer.addWindow(&mainWindow);
+	uiContainer.addWindow(&keyingWindow);
+	uiContainer.addWindow(&settings);
+	uiContainer.addWindow(&maskPreview);
+	uiContainer.addWindow(&outputWindow);
+
+	Pipeline* pipeline = new Pipeline(&uiContainer, &mtxScreenCard);
+
+	pipeline->addPipelineObject(in, OBJECT_INPUT);
+	pipeline->addPipelineObject(pp, OBJECT_PREPROCESSOR);
+	pipeline->addPipelineObject(ss, OBJECT_SNAPSHOT);
+	pipeline->addPipelineObject(lt, OBJECT_LOOKUP);
+	pipeline->addPipelineObject(cm, OBJECT_CHROMMA_MASK);
+	pipeline->addPipelineObject(yolo, OBJECT_YOLO_MASK);
+	pipeline->addPipelineObject(keyer, OBJECT_KEYER);
+
+	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
+
+	while(uiContainer.dispatchKey()!=WINDOW_EVENT_EXIT)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(40));
+		uiContainer.dispatchEvent();
+		uiContainer.updateWindows();
+	}
+
+	uiContainer.dispatchEvent();
+	processingThread->join();
+
+	// TODO: Clean up -> Cuda Variables and System Objects.
+
+
+
+
+
+
 //	std::thread p(&startPipeline);
 //
 //	p.join();

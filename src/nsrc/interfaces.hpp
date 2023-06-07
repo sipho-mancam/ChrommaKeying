@@ -18,6 +18,8 @@
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/opencv.hpp>
 #include <unordered_map>
+#include "events.hpp"
+#include "ui.hpp"
 
 #define CUDA_LOOKUP_SIZE 1073741824
 
@@ -237,6 +239,7 @@ public:
 	YoloMask(IPipeline *obj):IMask(obj){}
 	void create() override;
 	uchar* output() override;
+	bool isMask()override;
 };
 
 
@@ -270,12 +273,46 @@ public:
 };
 
 
-inline void allocateMemory(void** devptr, long int size);
-void startPipeline();
+class Pipeline
+{
+private:
+	std::unordered_map<std::string, IPipeline*> pipelineObjects;
+	std::vector<std::string> availableObjects;
+	WindowsContainer *container;
 
+	Input *input;
+	Preprocessor *preproc;
+	SnapShot * snapShot;
+	LookupTable *lookup;
+	ChrommaMask *chrommaMask;
+	YoloMask *yoloMask;
+	Keyer *keyer;
+	int event;
+	std::mutex* mtx;
+public:
+	Pipeline(WindowsContainer* cont, std::mutex* m)
+	{
+		this->container = cont;
+		this->input = nullptr;
+		this->preproc = nullptr;
+		this->snapShot = nullptr;
+		this->lookup = nullptr;
+		this->chrommaMask = nullptr;
+		this->yoloMask = nullptr;
+		this->keyer = nullptr;
+		event = -1;
+		mtx = m;
+	}
+	~Pipeline(); // iterates over all objects and frees them from memory.
+	void run(); // run the pipeline
+	void load();
+	void addPipelineObject(IPipeline* obj, std::string name);
+	void assertObjects();
+	void viewPipeline(); // prints all the objects in the pipeline in the order they appear
+};
 
-
-
+void startPipeline(Pipeline *obj);
+void allocateMemory(void** devptr, long int size);
 
 
 #endif /* SRC_NSRC_INTERFACES_HPP_ */

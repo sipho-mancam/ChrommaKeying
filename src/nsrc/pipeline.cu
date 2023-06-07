@@ -300,12 +300,12 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 	{
 		this->loaded = false;
 		int maxRecSize = 200;
-		float ScalingValue = maxRecSize*1.0/ws["Outer Diam"]*1.0;
+		float ScalingValue = maxRecSize*1.0/ws[WINDOW_TRACKBAR_OUTER_DIAM]*1.0;
 
 		const dim3 block(16, 16);
 		const dim3 grid(
-						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.x),
-						iDivUp((ws["Outer Diam"]+ws["UV Diam"])*2, block.y)
+						iDivUp((ws[WINDOW_TRACKBAR_OUTER_DIAM]+ws[WINDOW_TRACKBAR_UV_DIAM])*2, block.x),
+						iDivUp((ws[WINDOW_TRACKBAR_OUTER_DIAM]+ws[WINDOW_TRACKBAR_UV_DIAM])*2, block.y)
 						);
 
 		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic /2); x++)
@@ -317,11 +317,11 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						this->lookupBuffer,
 						x, y,
 						(this->iWidth / 2),
-						ws["Outer Diam"]*2,
-						ws["UV Diam"]*2,
-						ws["E Lum"],
+						ws[WINDOW_TRACKBAR_OUTER_DIAM]*2,
+						ws[WINDOW_TRACKBAR_UV_DIAM]*2,
+						ws[WINDOW_TRACKBAR_LUM],
 						ScalingValue,
-						abs(md.x - md.iXDownDynamic)*2
+						255
 						);
 				this->cudaStatus = cudaGetLastError();
 				this->checkCudaError("Launch kernel", "Device");
@@ -492,6 +492,11 @@ uchar* YoloMask::output()
 	return this->maskBuffer;
 }
 
+bool YoloMask::isMask()
+{
+	return this->mask;
+}
+
 void MaskOut::create()
 {
 	// perform some mask creation here ...
@@ -538,145 +543,151 @@ void Keyer::create(int blend=480)
 
 }
 
+void Pipeline::run()
+{
+	this->load();
+	this->viewPipeline();
+	KeyingWindow *keyingWindow = (KeyingWindow*)this->container->getWindow(WINDOW_NAME_KEYING);
+	assert(keyingWindow!=nullptr);
+	SettingsWindow *settings = (SettingsWindow*)this->container->getWindow(WINDOW_NAME_SETTINGS);
+	assert(settings != nullptr);
+	WindowI *maskPreview = this->container->getWindow(WINDOW_NAME_MASK);
+
+	WindowI *outputWindow = this->container->getWindow(WINDOW_NAME_OUTPUT);
+
+	Preview prev(this->preproc);
+
+	while(event!= WINDOW_EVENT_EXIT)
+	{
+		event = this->container->getEvent();
+		input->run();
+
+		if(input->isOutput())
+		{
+			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
+			preproc->unpack();
+			preproc->create();
+
+			switch(event)
+			{
+			case WINDOW_EVENT_CAPTURE:
+				std::cout<<"I fire"<<std::endl;
+				chrommaMask->output();
+				if(chrommaMask->isMask())
+				{
+					chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
+					chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
+					chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
+					chrommaMask->toRGB();
+
+					prev.load(chrommaMask->getMaskRGB());
+					prev.preview(maskPreview->getHandle());
+
+					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
+					keyer->convertToRGB();
+				}
+
+				snapShot->takeSnapShot();
+
+				mtx->lock();
+				keyingWindow->loadImage(snapShot->getSnapShot());
+				keyingWindow->show();
+				mtx->unlock();
+				break;
+
+			case WINDOW_EVENT_SAVE_IMAGE:
+
+				break;
+
+			}
+
+			if(chrommaMask->isMask())
+			{
+				chrommaMask->output();
+				#ifndef DEBUG
+				chrommaMask->toRGB();
+				prev.load(chrommaMask->getMaskRGB());
+				prev.preview(maskPreview->getHandle());
+				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
+				// TODO: keyer->pack() -> pack the output video filled with the key.
+				// TODO: input->output() -> send output to the deckink
+				keyer->convertToRGB();
+				prev.load(keyer->getRGB());
+				prev.preview(outputWindow->getHandle());
+				#endif
+			}
+
+			if(keyingWindow->isCaptured())// frame is captured
+			{
+				keyingWindow->update();
+				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
+			}
+		}
+	}
+}
+
+void Pipeline::addPipelineObject(IPipeline* obj, std::string name)
+{
+	try{
+		this->pipelineObjects[name] = obj;
+		this->availableObjects.push_back(name);
+	}catch(std::exception &e){
+
+	}
+}
 
 
-inline void allocateMemory(void** devptr, long int size)
+void Pipeline::load()
+{
+	try{
+		preproc = (Preprocessor*)this->pipelineObjects[OBJECT_PREPROCESSOR];
+		snapShot = (SnapShot*) this->pipelineObjects[OBJECT_SNAPSHOT];
+		lookup = (LookupTable*) this->pipelineObjects[OBJECT_LOOKUP];
+		chrommaMask = (ChrommaMask*)this->pipelineObjects[OBJECT_CHROMMA_MASK];
+		input = (Input*) this->pipelineObjects[OBJECT_INPUT];
+		yoloMask = (YoloMask*)this->pipelineObjects[OBJECT_YOLO_MASK];
+		keyer = (Keyer*)this->pipelineObjects[OBJECT_KEYER];
+	}catch(std::exception& err){
+		// Do some logging here
+		std::cerr<<"[Error]: Failed to load objects into the pipeline"<<std::endl;
+		exit(-1);
+	}
+	this->assertObjects();
+}
+
+void Pipeline::assertObjects()
+{
+	assert(preproc!=nullptr);
+	assert(snapShot!=nullptr);
+	assert(lookup!=nullptr);
+	assert(chrommaMask!=nullptr);
+	assert(input!=nullptr);
+	assert(yoloMask!=nullptr);
+	assert(keyer!=nullptr);
+	assert(mtx!=nullptr);
+}
+
+void Pipeline::viewPipeline()
+{
+	std::cout<<"[info]: Printing all available objects in the Pipeline: "<<std::endl;
+	for(std::string& obj: this->availableObjects)
+	{
+		std::cout<<"\tName:\t"<<obj<<std::endl;
+	}
+}
+
+
+
+
+void allocateMemory(void** devptr, long int size)
 {
 	cudaError_t cudaStatus = cudaMalloc(devptr, size);
 	assert(cudaStatus==cudaSuccess);
 }
 
-void startPipeline()
+void startPipeline(Pipeline* pipeline)
 {
-	uchar *chrommaLookupBuffer, *chrommaMask;
-	uchar2 *pVideo, *pKey, *pFill;
-	uchar3* rgbVideo, *vSnapshot, *maskRGB;
-	uint4 *video, *key, *fill, *aVideo, *snapShotV;
-
-	VideoIn decklink;
-
-	Input *in = new Input(&decklink);
-
-	/*************************************************************************************
-	 * This is for memory alignment                                                      *
-	 * It seems allocating device memory inside an object causes mis-alignment,           *
-	 * Reason:                                                                           *
-	 * 	still need to read more and find out why.                                        *
-	 * Solution:                                                                         *
-	 * 	Declare memory outside and load it inside, but keep the rest of the flow fixed.  *
-	 *************************************************************************************/
-	allocateMemory((void**)&pVideo,in->getPFrameSize());
-	allocateMemory((void**)&pKey, in->getPFrameSize());
-	allocateMemory((void**)&pFill, in->getPFrameSize());
-
-	allocateMemory((void**)&video, in->getFrameSize());
-	allocateMemory((void**)&key, in->getFrameSize());
-	allocateMemory((void**)&fill, in->getFrameSize());
-	allocateMemory((void**)&aVideo, in->getFrameSize());
-	allocateMemory((void**)&snapShotV, in->getFrameSize());
-
-	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
-	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
-	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
-	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
-
-	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
-
-	WindowsContainer uiContainer;
-
-	WindowI mainWindow("Main"); // plays the video playback
-
-	KeyingWindow keyingWindow("Keying Window", in->getWidth(), in->getHeight()); // keying window
-
-	SettingsWindow settings("Setting"); // settings
-
-	WindowI maskPreview("Mask Preview");
-	WindowI outputWindow("Output");
-
-	keyingWindow.enableMouse();
-
-	uiContainer.addWindow(&mainWindow);
-	uiContainer.addWindow(&keyingWindow);
-	uiContainer.addWindow(&settings);
-
-	in->load(pVideo, pKey, pFill);
-
-	in->run();
-
-	if(in->isOutput())
-	{
-		Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
-		pp->load(video, key, fill, aVideo, rgbVideo);
-
-		SnapShot *ss = new SnapShot(pp);
-		ss->load(vSnapshot, snapShotV);
-
-		Preview *prev = new Preview(ss);
-		prev->load(ss->getSnapShot());
-
-		LookupTable *lt = new LookupTable(ss);
-		lt->load(chrommaLookupBuffer, snapShotV);
-
-		ChrommaMask *cm = new ChrommaMask(pp, lt);
-		cm->load(chrommaMask, maskRGB);
-
-		Keyer *keyer = new Keyer(pp, cm->getMask());
-
-		while(uiContainer.dispatchKey() != 27)
-		{
-			in->run();
-
-			pp->reload(in->getPVideo(), in->getPKey(), in->getPFill());
-			pp->unpack();
-			pp->create();
-			pp->convertToRGB();
-
-			prev->load(pp->getRGB());
-			prev->preview(mainWindow.getHandle());
-
-			if(uiContainer.getKey() == 'q')
-			{
-				cm->output();
-				if(cm->isMask())
-				{
-//					cm->dilate(2);
-					cm->erode(4);
-					cm->openMorph(4);
-					cm->toRGB();
-					prev->load(cm->getMaskRGB());
-					prev->preview(maskPreview.getHandle());
-				}
-				keyer->create(settings.getTrackbarValues()["Blending"]);
-				keyer->convertToRGB();
-				ss->takeSnapShot();
-				keyingWindow.loadImage(ss->getSnapShot());
-				keyingWindow.show();
-			}
-
-			if(cm->isMask())
-			{
-				cm->output();
-				cm->toRGB();
-				prev->load(cm->getMaskRGB());
-				prev->preview(maskPreview.getHandle());
-				keyer->create(settings.getTrackbarValues()["Blending"]);
-				keyer->convertToRGB();
-				prev->load(keyer->getRGB());
-				prev->preview(outputWindow.getHandle());
-
-			}
-
-			if(keyingWindow.isCaptured())// frame is captured
-			{
-				keyingWindow.update();
-				lt->update(keyingWindow.isCaptured(), keyingWindow.getMD(), settings.getTrackbarValues());
-			}
-
-
-		}
-	}
-
-	std::cout<<"Pipeline finished"<<std::endl;
+	pipeline->run();
 }
 
 

@@ -14,6 +14,8 @@
 #include <YUVUChroma.cuh>
 #include <unordered_map>
 #include <vector>
+#include <queue>
+#include "events.hpp"
 
 
 void mouseCallback(int event, int x, int y, int flag, void* data);
@@ -30,6 +32,7 @@ protected:
 	cv::Rect windowRect;
 	bool mEnabled;
 	bool captureKey;
+	bool keyEnabled;
 public:
 	WindowI(std::string windowHandle)
 	{
@@ -42,6 +45,7 @@ public:
 		mouseData.windowName = this->windowName;
 		mEnabled = false;
 		captureKey = false;
+		keyEnabled = false;
 	}
 
 	std::string getHandle(){return this->windowName;}
@@ -51,6 +55,8 @@ public:
 		this->mEnabled = true;
 		this->setMouseCB((void*)&this->mouseData, cb_);
 	}
+	void enableKeys(){this->keyEnabled = true;}
+	void disableKeys(){this->keyEnabled = false;}
 	MouseData getMD(){return this->mouseData;}
 	int getPressKey(){ return key;}
 	void setKey(int k){
@@ -61,6 +67,8 @@ public:
 	void setKeyCB(void(*kCB)(int));
 	virtual void update(){}
 	virtual ~WindowI() = default;
+	virtual int parseKey(); // this method will transform the received key to an event.
+							// All windows will implement the same parser, but they can override for custom parser.
 };
 
 class KeyingWindow: public WindowI
@@ -91,9 +99,18 @@ class SettingsWindow :public WindowI
 {
 private:
 	std::vector<std::string> trackbars = {
-											"Blending", "Delay", "Erode", "Dilate", "Outer Diam",
-											"UV Diam", "Lum Depth", "E UV", "E Lum", "Key Bot",
-											"Key Top", "NMS"
+											WINDOW_TRACKBAR_BLENDING,
+											WINDOW_TRACKBAR_DELAY,
+											WINDOW_TRACKBAR_ERODE,
+											WINDOW_TRACKBAR_DILATE,
+											WINDOW_TRACKBAR_OUTER_DIAM,
+											WINDOW_TRACKBAR_UV_DIAM,
+											WINDOW_TRACKBAR_LUM_DEPTH,
+											WINDOW_TRACKBAR_UV,
+											WINDOW_TRACKBAR_LUM,
+											WINDOW_TRACKBAR_KEYTOP,
+											WINDOW_TRACKBAR_KEYBOTTOM,
+											WINDOW_TRACKBAR_NMS,
 										};
 	std::unordered_map<std::string, int> trackbarValues;
 public:
@@ -136,17 +153,23 @@ class WindowsContainer
 private:
 	std::unordered_map<std::string, WindowI*> windows;
 	int pressedKey;
+	std::queue<int> eventQueue;
+	int currentEvent;
+
 public:
 	WindowsContainer()
 	{
 		this->pressedKey = 0;
+		this->currentEvent = -1;
 	}
 	void addWindow(WindowI *w);
 	void removeWindow(std::string windowHandle);
 	int dispatchKey();
+	void dispatchEvent();
+	int getEvent();
+	void updateWindows();
 	WindowI * getWindow(std::string windowHandle);
 	int getKey(){return this->pressedKey;}
-
 	~WindowsContainer();
 };
 
