@@ -482,10 +482,10 @@ bool CudaChromaInit(int iWidth, int iHeight, int iFrameSizeYUV10Bit, int iFrameS
 
 
 		cudaStatus = cudaMalloc((void**)&U_Unpacked_Video, 960*1080*sizeof(uint16_t));
-				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaMalloc failed!");
-					return false;
-				}
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+			return false;
+		}
 
 
 
@@ -2794,7 +2794,7 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 
 	for (int c = -iLum_Diameter; c < iLum_Diameter; c++)
 	{
-	    double bitpos1a = GetBitPos3(make_double3(myFX, myFy, macroPxVideo->y+ c ));
+	    double bitpos1a = GetBitPos3(make_double3(myFX, myFy, macroPxVideo->y+c ));
 
 		while (GetBit3(bitpos1a, LookupTable)< uKeyValue)
 		{
@@ -3390,7 +3390,6 @@ __global__ void yuyvUnpackedComBineDataThreeLookups(uint4* src_Video_Unapc,uint4
 		else
 		{
 			dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
-		//	printf("%f", dBlendPos);
 		}
 
 		calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
@@ -3508,9 +3507,18 @@ __global__ void keyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* 
 			double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
 			if (CalculateLumKeyVal < 0)
 				return;
+
 			dBlendPos = dBlendPos * CalculateLumKeyVal;
 		}
-		else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+		else
+		{
+			dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+		}
+
+		calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
+		calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->y, &macroPxVideo->x, dBlendPos);
+		calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
+		calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
 	}
 	else if (maskUpload0[y * dstAlignedWidth + (x * 2) + 0] != 0)
 	{
@@ -3522,15 +3530,18 @@ __global__ void keyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* 
 			double CalculateLumKeyVal = Parabolic.x*(Lum*Lum) + Parabolic.y*Lum + Parabolic.z;
 			if (CalculateLumKeyVal < 0)
 				return;
+
 			dBlendPos = dBlendPos * CalculateLumKeyVal;
 		}
-		else dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
-	}
+		else
+		{
+			dBlendPos = maskUpload0[y * dstAlignedWidth + (x * 2) + 0] / 255.0  * dBlendPos;
+		}
 
-	calculateBlend(&macroPxVideo->w, &macroPxFill->w, &macroPxKey->w, &macroPxVideo->w, dBlendPos);
-	calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->y, &macroPxVideo->x, dBlendPos);
-	calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
-	calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
+		calculateBlend(&macroPxVideo->x, &macroPxFill->x, &macroPxKey->w, &macroPxVideo->x, dBlendPos);
+		calculateBlend(&macroPxVideo->y, &macroPxFill->y, &macroPxKey->y, &macroPxVideo->y, dBlendPos);
+		calculateBlend(&macroPxVideo->z, &macroPxFill->z, &macroPxKey->z, &macroPxVideo->z, dBlendPos);
+	}
 }
 
 

@@ -17,6 +17,7 @@ void mouseCallback(int event, int x, int y, int flags, void* data)
 
 	MouseData* md = (MouseData*)data;
 	static int iRecsize = 20;
+	static int rectLim = 20;
 	Rect tt = getWindowImageRect(md->windowName);
 	double x1 = x; //double(x)/(double)(tt.width)  * 1920.0;//window correction
 	double y1 = y; //double(y)/(double)(tt.height) * 1080.0;//window correction
@@ -26,12 +27,11 @@ void mouseCallback(int event, int x, int y, int flags, void* data)
 		case EVENT_MOUSEWHEEL ://!< positive and negative values mean forward and backward scrolling, respectively.
 			if (flags > 0)
 			{
-
-					iRecsize += iRecsize>1?-1:0;
+				iRecsize += iRecsize>1?-1:0;
 			}
 			else
 			{
-				iRecsize += iRecsize<29? 1 : -iRecsize+30;
+				iRecsize += iRecsize<rectLim-1? 1 : -iRecsize+rectLim;
 			}
 
 			md->iXUpDynamic = x1 - iRecsize;

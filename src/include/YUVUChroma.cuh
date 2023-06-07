@@ -28,8 +28,8 @@ struct MouseData
 	int iYUp = 0;
 	int iXDownDynamic = 0;
 	int iYDownDynamic = 0;
-	int iXUpDynamic = 0;
-	int iYUpDynamic = 0;
+	int iXUpDynamic = 10;
+	int iYUpDynamic = 10;
 	int x;
 	int y;
 	bool bHandleLDown = false;

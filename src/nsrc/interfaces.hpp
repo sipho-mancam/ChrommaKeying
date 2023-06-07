@@ -44,6 +44,7 @@ public:
 //	virtual void output() = 0;
 	virtual void init() {}
 	virtual void convertToRGB();
+	virtual void rgbToYUYV();
 
 	uint4* getVideo(){return this->video;}
 	uint4* getFill(){ return this->fill;}
@@ -77,6 +78,7 @@ public:
 	}
 	void erode(int);
 	void dilate(int);
+	void openMorph(int size);
 	virtual ~IMask() = default;
 	virtual bool isMask() = 0;
 	virtual uchar* output() = 0;
@@ -118,10 +120,9 @@ public:
 	}
 };
 
-/****
+/*
  * Video is received as YCbCr from decklink and unpacked to yuyv
  * rgbVideo contains the received video rgbOutput
- *
  */
 
 class Input : public IPipeline
@@ -265,7 +266,7 @@ private:
 	double4 parabolic;
 public:
 	Keyer(IPipeline* obj, uchar* finalMask);
-	void create(); // combines the key, fill and video to video
+	void create(int blend); // combines the key, fill and video to video
 };
 
 

@@ -12,6 +12,8 @@
 #include <YUVUChroma.cuh>
 #include <stdio.h>
 #include <opencv2/cudafilters.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/opencv.hpp>
 #include "interfaces.hpp"
 #include <ui.hpp>
 
@@ -86,6 +88,28 @@ void IPipeline::convertToRGB()
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("Synchronize device", " host");
 
+}
+
+void IPipeline::rgbToYUYV()
+{
+//	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_8UC3, this->rgbVideo, sizeof(uchar3)*this->iWidth);
+//	cv::cuda::GpuMat output;
+//
+//
+//	cv::cuda::cvtColor(input, output, COLOR_RGB2YCrCb, 4);
+//
+//	cv::Mat prev;
+//
+//	output.download(prev);
+//
+//	imshow("Demo", prev);
+//
+//	cv::cuda::GpuMat augV(output.rows, output.cols, CV_16UC4, this->augVideo, output.rows*output.step);
+//
+//	output.copyTo(augV);
+
+//	this->cudaStatus = cudaMemcpy(this->augVideo, output.data, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
+//	this->checkCudaError("copy memory", "augVideo");
 }
 
 
@@ -248,6 +272,11 @@ void Preprocessor::unpack()
 
 void Preprocessor::create()
 {
+	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_16UC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
+	cv::cuda::GpuMat output;
+	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(9,9), -1);
+	gaus->apply(input, output);
+	output.copyTo(input);
 
 }
 
@@ -288,12 +317,11 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						this->lookupBuffer,
 						x, y,
 						(this->iWidth / 2),
-						1,10,5,
-//						ws["Outer Diam"]*2,
-//						ws["UV Diam"]*2,
-//						ws["E Lum"],
+						ws["Outer Diam"]*2,
+						ws["UV Diam"]*2,
+						ws["E Lum"],
 						ScalingValue,
-						maxRecSize
+						abs(md.x - md.iXDownDynamic)*2
 						);
 				this->cudaStatus = cudaGetLastError();
 				this->checkCudaError("Launch kernel", "Device");
@@ -320,28 +348,50 @@ void IMask::init()
 
 void IMask::erode(int size)
 {
-	cv::cuda::GpuMat chrommaMaskInput;
-	cv::cuda::GpuMat chrommaMaskOutput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
-	chrommaMaskOutput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer);
+	chrommaMaskInput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskOutput;
 
 	// erode output mask
 	int an = size;
-	cv::Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	cv::Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an));
 	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, chrommaMaskInput.type(), element);
 	erodeFilter->apply(chrommaMaskInput, chrommaMaskOutput);
+
+
+	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", "maskBuffer");
 }
 
 void IMask::dilate(int size)
 {
-	cv::cuda::GpuMat chrommaMaskInput;
-	cv::cuda::GpuMat chrommaMaskOutput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
-	chrommaMaskOutput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
+	chrommaMaskInput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskOutput;
 
 	// Dilate the output mask
 	int an = size;
-	cv::Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
+	cv::Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1));
 	Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, chrommaMaskInput.type(), element);
 	erodeFilter2->apply(chrommaMaskInput, chrommaMaskOutput);
+
+	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", "maskBuffer");
+}
+
+void IMask::openMorph(int size)
+{
+	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
+	chrommaMaskInput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskOutput;
+
+	int an = size;
+	cv::Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1));
+	Ptr<cv::cuda::Filter> openingFilter = cv::cuda::createMorphologyFilter(MORPH_OPEN, chrommaMaskInput.type(), element);
+	openingFilter->apply(chrommaMaskInput, chrommaMaskOutput);
+
+	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
+	this->checkCudaError("copy memory", "maskBuffer: openMorph");
 }
 
 ChrommaMask::ChrommaMask(IPipeline* obj, LookupTable* t): IMask(obj)
@@ -459,7 +509,7 @@ Keyer::Keyer(IPipeline* obj, uchar* mask): IPipeline(obj)
 	this->parabolic = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
 }
 
-void Keyer::create()
+void Keyer::create(int blend=480)
 {
 
 	const int dstAlignedWidth = (this->iWidth / 2);
@@ -476,13 +526,14 @@ void Keyer::create()
 			dstAlignedWidth,
 			maskWidth,
 			this->finalMask,
-			480,
+			blend,
 			this->parabolic
 		);
 	this->cudaStatus = cudaGetLastError();
 	assert(this->cudaStatus==cudaSuccess);
 
 	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize kernel", "Device");
 	assert(this->cudaStatus==cudaSuccess);
 
 }
@@ -508,7 +559,7 @@ void startPipeline()
 
 	/*************************************************************************************
 	 * This is for memory alignment                                                      *
-	 * It seems allocating device memory inside an object causes misalignment,           *
+	 * It seems allocating device memory inside an object causes mis-alignment,           *
 	 * Reason:                                                                           *
 	 * 	still need to read more and find out why.                                        *
 	 * Solution:                                                                         *
@@ -523,11 +574,12 @@ void startPipeline()
 	allocateMemory((void**)&fill, in->getFrameSize());
 	allocateMemory((void**)&aVideo, in->getFrameSize());
 	allocateMemory((void**)&snapShotV, in->getFrameSize());
+
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
-
 	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
+
 	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
 
 	WindowsContainer uiContainer;
@@ -539,6 +591,7 @@ void startPipeline()
 	SettingsWindow settings("Setting"); // settings
 
 	WindowI maskPreview("Mask Preview");
+	WindowI outputWindow("Output");
 
 	keyingWindow.enableMouse();
 
@@ -572,8 +625,10 @@ void startPipeline()
 		while(uiContainer.dispatchKey() != 27)
 		{
 			in->run();
+
 			pp->reload(in->getPVideo(), in->getPKey(), in->getPFill());
 			pp->unpack();
+			pp->create();
 			pp->convertToRGB();
 
 			prev->load(pp->getRGB());
@@ -581,38 +636,43 @@ void startPipeline()
 
 			if(uiContainer.getKey() == 'q')
 			{
-				ss->takeSnapShot();
-				keyingWindow.loadImage(ss->getSnapShot());
-				keyingWindow.show();
 				cm->output();
 				if(cm->isMask())
 				{
+//					cm->dilate(2);
+					cm->erode(4);
+					cm->openMorph(4);
 					cm->toRGB();
-					cv::cuda::GpuMat mat;
-					mat.create(pp->getHeight(), pp->getWidth(), CV_8UC3);
-					mat.step = 5760;
-					mat.data = (uchar*)cm->getMaskRGB();
-
-					cv::Mat prev;
-					mat.download(prev);
-					cv::imshow("Mask Preview", prev);
+					prev->load(cm->getMaskRGB());
+					prev->preview(maskPreview.getHandle());
 				}
+				keyer->create(settings.getTrackbarValues()["Blending"]);
+				keyer->convertToRGB();
+				ss->takeSnapShot();
+				keyingWindow.loadImage(ss->getSnapShot());
+				keyingWindow.show();
 			}
 
 			if(cm->isMask())
 			{
-				keyer->create();
+				cm->output();
+				cm->toRGB();
+				prev->load(cm->getMaskRGB());
+				prev->preview(maskPreview.getHandle());
+				keyer->create(settings.getTrackbarValues()["Blending"]);
 				keyer->convertToRGB();
 				prev->load(keyer->getRGB());
-				prev->preview(mainWindow.getHandle());
+				prev->preview(outputWindow.getHandle());
+
 			}
 
 			if(keyingWindow.isCaptured())// frame is captured
 			{
+				keyingWindow.update();
 				lt->update(keyingWindow.isCaptured(), keyingWindow.getMD(), settings.getTrackbarValues());
 			}
 
-			keyingWindow.update();
+
 		}
 	}
 
