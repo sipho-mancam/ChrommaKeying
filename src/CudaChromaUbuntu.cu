@@ -1108,12 +1108,6 @@ int main()
 
 
 
-//	std::thread p(&startPipeline);
-//
-//	p.join();
-
-//	std::cout<<"Hello world"<<std::endl;
-
 //	if (1)
 //	{
 //		#ifndef PREVIEW_OUTPUTRENDER

@@ -157,7 +157,7 @@ void Input::run()
 	const int dstAlignedWidth = this->iWidth/2;
 
 	input->WaitForFrames(1);
-	static void* videoFrame;
+	static void* videoFrame = NULL;
 	this->in = false;
 	if(videoFrame)
 		free(videoFrame);
@@ -167,7 +167,6 @@ void Input::run()
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
 	this->checkCudaError("copy memory", " pVideo");
-//	std::cout<<"Video: "<<videoFrame<<std::endl;
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
@@ -547,14 +546,13 @@ void Pipeline::run()
 {
 	this->load();
 	this->viewPipeline();
+
 	KeyingWindow *keyingWindow = (KeyingWindow*)this->container->getWindow(WINDOW_NAME_KEYING);
 	assert(keyingWindow!=nullptr);
 	SettingsWindow *settings = (SettingsWindow*)this->container->getWindow(WINDOW_NAME_SETTINGS);
 	assert(settings != nullptr);
 	WindowI *maskPreview = this->container->getWindow(WINDOW_NAME_MASK);
-
 	WindowI *outputWindow = this->container->getWindow(WINDOW_NAME_OUTPUT);
-
 	Preview prev(this->preproc);
 
 	while(event!= WINDOW_EVENT_EXIT)
@@ -564,14 +562,13 @@ void Pipeline::run()
 
 		if(input->isOutput())
 		{
-			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
+			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill()); // load video from the input
 			preproc->unpack();
 			preproc->create();
 
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
-				std::cout<<"I fire"<<std::endl;
 				chrommaMask->output();
 				if(chrommaMask->isMask())
 				{
@@ -592,6 +589,7 @@ void Pipeline::run()
 				mtx->lock();
 				keyingWindow->loadImage(snapShot->getSnapShot());
 				keyingWindow->show();
+				keyingWindow->captured();
 				mtx->unlock();
 				break;
 
@@ -604,6 +602,7 @@ void Pipeline::run()
 			if(chrommaMask->isMask())
 			{
 				chrommaMask->output();
+
 				#ifndef DEBUG
 				chrommaMask->toRGB();
 				prev.load(chrommaMask->getMaskRGB());

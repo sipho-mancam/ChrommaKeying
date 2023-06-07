@@ -59,13 +59,11 @@ public:
 	void disableKeys(){this->keyEnabled = false;}
 	MouseData getMD(){return this->mouseData;}
 	int getPressKey(){ return key;}
-	void setKey(int k){
-		key = k;
-		if(this->key == 'q' || this->key == 'Q') this->captureKey = true;
-	}
+	void setKey(int k){key = k;}
 	bool isCaptured(){return this->captureKey;}
 	void setKeyCB(void(*kCB)(int));
 	virtual void update(){}
+	virtual void captured(){this->captureKey = true;}
 	virtual ~WindowI() = default;
 	virtual int parseKey(); // this method will transform the received key to an event.
 							// All windows will implement the same parser, but they can override for custom parser.
