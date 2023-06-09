@@ -56,6 +56,7 @@ public:
 		this->setMouseCB((void*)&this->mouseData, cb_);
 	}
 	void enableKeys(){this->keyEnabled = true;}
+	bool isKeysEnabled(){return this->keyEnabled;}
 	void disableKeys(){this->keyEnabled = false;}
 	MouseData getMD(){return this->mouseData;}
 	int getPressKey(){ return key;}

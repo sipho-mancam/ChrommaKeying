@@ -3846,18 +3846,19 @@ __global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,
 	double Cr0;
 	double Y0;
 	double Cb0;
+	double Y1;
 
 	double Y2;
 	double Cb2;
-	double Y1;
+	double Cr2;
+	double Y3;
 
 	double Cb4;
-	double Y3;
-	double Cr2;
-
 	double Y5;
 	double Cr4;
 	double Y4;
+
+
 	Cr0 = (macroPx->x >> 20);
 	Y0 = ((macroPx->x & 0xffc00) >> 10);
 	Cb0 = (macroPx->x & 0x3ff);
@@ -3876,10 +3877,7 @@ __global__ void yuyvPackedToyuyvUnpacked(uint4* src_Video, uint4 *dst_video_all,
 	Cr4 = ((macroPx->w & 0xffc00) >> 10);
 	Y4 = (macroPx->w & 0x3ff);
 
-	/*	double y1 = (double)macroPx.w;
-	 double v = (double)macroPx.x;
-	 double y0 = (double)macroPx.y;
-	 double u = (double)macroPx.z;*/
+//	printf("%d %d %d %d\n",macroPx->w, macroPx->x, macroPx->y, macroPx->z)
 
 	dst_video_all[y * dstAlignedWidth + (x * 3) + 0] = make_uint4(Cr0, Y0, Cb0,
 			Y1);// x y z w

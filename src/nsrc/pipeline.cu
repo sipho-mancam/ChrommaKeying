@@ -162,8 +162,23 @@ void Input::run()
 	if(videoFrame)
 		free(videoFrame);
 	videoFrame = this->input->imagelistVideo.GetFrame(true);
+	if(!videoFrame)
+	{
+		this->in  = false;
+		return;
+	}
 	void* keyFrame = this->input->imagelistKey.GetFrame(true);
+	if(!keyFrame)
+	{
+		this->in  = false;
+		return;
+	}
 	void* fillFrame = this->input->imagelistFill.GetFrame(true);
+	if(!fillFrame)
+	{
+		this->in  = false;
+		return;
+	}
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
 	this->checkCudaError("copy memory", " pVideo");
@@ -553,7 +568,14 @@ void Pipeline::run()
 	assert(settings != nullptr);
 	WindowI *maskPreview = this->container->getWindow(WINDOW_NAME_MASK);
 	WindowI *outputWindow = this->container->getWindow(WINDOW_NAME_OUTPUT);
+<<<<<<< HEAD
+=======
+	WindowI *main = this->container->getWindow(WINDOW_NAME_MAIN);
+
+>>>>>>> new_optimisation
 	Preview prev(this->preproc);
+
+	int outputCounter = 0;
 
 	while(event!= WINDOW_EVENT_EXIT)
 	{
@@ -562,9 +584,21 @@ void Pipeline::run()
 
 		if(input->isOutput())
 		{
+<<<<<<< HEAD
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill()); // load video from the input
+=======
+			outputCounter = 0;
+			this->mtx->lock();
+			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
+>>>>>>> new_optimisation
 			preproc->unpack();
 			preproc->create();
+			this->mtx->unlock();
+
+			preproc->convertToRGB();
+
+			prev.load(preproc->getRGB());
+			prev.preview(main->getHandle());
 
 			switch(event)
 			{
@@ -583,7 +617,7 @@ void Pipeline::run()
 					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
 					keyer->convertToRGB();
 				}
-
+				snapShot->convertToRGB();
 				snapShot->takeSnapShot();
 
 				mtx->lock();
@@ -621,6 +655,11 @@ void Pipeline::run()
 				keyingWindow->update();
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
 			}
+		}
+		else
+		{
+			outputCounter ++;
+			exit(-1);
 		}
 	}
 }
