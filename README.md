@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CudaChromaUbuntu
 
 The CudaChromaSoftware is a Seb4Vision software built to do the following:
@@ -47,3 +48,6 @@ cd CudaChromaUbuntu
 
 *If there are any problems you face following these steps outlined above, <br /> please feel free to open up a git issue and we'll address it*
 
+=======
+# ChrommaKeying
+>>>>>>> 57d85e881aec9cf1124eec6b77f97f0640e40f66
