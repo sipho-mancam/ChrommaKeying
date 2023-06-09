@@ -189,7 +189,7 @@ void WindowsContainer::addWindow(WindowI *w)
 
 int WindowsContainer::dispatchKey()
 {
-	this->pressedKey = waitKey(1);
+	this->pressedKey = waitKey(10);
 	if(windows.empty())return -1;
 	if(this->pressedKey == -1)return -1;
 	if(this->pressedKey == WINDOW_EVENT_EXIT)
@@ -202,6 +202,7 @@ int WindowsContainer::dispatchKey()
 
 	for(auto& window: this->windows)
 	{
+		if(!window.second->isKeysEnabled())continue;
 		window.second->setKey(pressedKey);
 		event = window.second->parseKey();
 		if(event != -1)

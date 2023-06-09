@@ -162,12 +162,26 @@ void Input::run()
 	if(videoFrame)
 		free(videoFrame);
 	videoFrame = this->input->imagelistVideo.GetFrame(true);
+	if(!videoFrame)
+	{
+		this->in  = false;
+		return;
+	}
 	void* keyFrame = this->input->imagelistKey.GetFrame(true);
+	if(!keyFrame)
+	{
+		this->in  = false;
+		return;
+	}
 	void* fillFrame = this->input->imagelistFill.GetFrame(true);
+	if(!fillFrame)
+	{
+		this->in  = false;
+		return;
+	}
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
 	this->checkCudaError("copy memory", " pVideo");
-//	std::cout<<"Video: "<<videoFrame<<std::endl;
 	assert((this->cudaStatus == cudaSuccess));
 
 	this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
@@ -552,10 +566,12 @@ void Pipeline::run()
 	SettingsWindow *settings = (SettingsWindow*)this->container->getWindow(WINDOW_NAME_SETTINGS);
 	assert(settings != nullptr);
 	WindowI *maskPreview = this->container->getWindow(WINDOW_NAME_MASK);
-
 	WindowI *outputWindow = this->container->getWindow(WINDOW_NAME_OUTPUT);
+	WindowI *main = this->container->getWindow(WINDOW_NAME_MAIN);
 
 	Preview prev(this->preproc);
+
+	int outputCounter = 0;
 
 	while(event!= WINDOW_EVENT_EXIT)
 	{
@@ -564,14 +580,21 @@ void Pipeline::run()
 
 		if(input->isOutput())
 		{
+			outputCounter = 0;
+			this->mtx->lock();
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
 			preproc->create();
+			this->mtx->unlock();
+
+			preproc->convertToRGB();
+
+			prev.load(preproc->getRGB());
+			prev.preview(main->getHandle());
 
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
-				std::cout<<"I fire"<<std::endl;
 				chrommaMask->output();
 				if(chrommaMask->isMask())
 				{
@@ -586,7 +609,7 @@ void Pipeline::run()
 					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
 					keyer->convertToRGB();
 				}
-
+				snapShot->convertToRGB();
 				snapShot->takeSnapShot();
 
 				mtx->lock();
@@ -622,6 +645,11 @@ void Pipeline::run()
 				keyingWindow->update();
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
 			}
+		}
+		else
+		{
+			outputCounter ++;
+			exit(-1);
 		}
 	}
 }

@@ -137,6 +137,14 @@ VideoIn::VideoIn()
 	m_sizeOfFrame=-1;
 	m_iRGBSize=0;
 	m_bExitApp=false;
+	m_iFrameSizeUnpacked = 0;
+	m_iRGBSizeOF = 0;
+	m_iABGRSize = 0;
+//	m_iABGRSize = 0;
+	m_RowLength = 0;
+	m_iHeight = 0;
+	m_iWidth = 0;
+
 	pthread_t threads;
 	int rc;
 	rc = pthread_create(&threads, NULL, StartDecklink, (void *) this);
@@ -800,67 +808,65 @@ HRESULT InputLoopThrough(VideoIn* thisData)
 			}
 
 			if (!deckLinkInputKey && (((BMDVideoIOSupport)videoIOSupport & bmdDeviceSupportsCapture) != 0))
-									{
-										dlbool_t	supportsInputFormatDetection;
+			{
+				dlbool_t	supportsInputFormatDetection;
 
-										// For scope of sample, only use input devices that support input format detection
-										if ((deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &supportsInputFormatDetection) == S_OK) &&
-											supportsInputFormatDetection)
-										{
-											try
-											{
-												deckLinkInputKey = make_com_ptr<DeckLinkInputDevice>(deckLink, kDisplayTimescale);
-											}
-											catch (const std::exception& e)
-											{
-												fprintf(stderr, "%s\n", e.what());
-												continue;
-											}
-											g_audioChannelCount = std::min((uint32_t)maxAudioChannels, g_audioChannelCount);
-											dispatch_printf(printDispatchQueue, "Using input device: %s\n", getDeckLinkDisplayName(deckLink).c_str());
-										}
+				// For scope of sample, only use input devices that support input format detection
+				if ((deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &supportsInputFormatDetection) == S_OK) &&
+					supportsInputFormatDetection)
+				{
+					try
+					{
+						deckLinkInputKey = make_com_ptr<DeckLinkInputDevice>(deckLink, kDisplayTimescale);
+					}
+					catch (const std::exception& e)
+					{
+						fprintf(stderr, "%s\n", e.what());
+						continue;
+					}
+					g_audioChannelCount = std::min((uint32_t)maxAudioChannels, g_audioChannelCount);
+					dispatch_printf(printDispatchQueue, "Using input device: %s\n", getDeckLinkDisplayName(deckLink).c_str());
+				}
 
-										// If input device is half duplex, skip output discovery
-										if (((BMDDuplexMode)duplexMode != bmdDuplexHalf))
-										{
-											std::cout << "Please setup decklink device for half duplex"<< std::endl;
-											exit(0);
-										}
-										continue;
-									}
+				// If input device is half duplex, skip output discovery
+				if (((BMDDuplexMode)duplexMode != bmdDuplexHalf))
+				{
+					std::cout << "Please setup decklink device for half duplex"<< std::endl;
+					exit(0);
+				}
+				continue;
+			}
 
 
 			if (!deckLinkInputFill && (((BMDVideoIOSupport)videoIOSupport & bmdDeviceSupportsCapture) != 0))
-						{
-							dlbool_t	supportsInputFormatDetection;
+			{
+				dlbool_t	supportsInputFormatDetection;
 
-							// For scope of sample, only use input devices that support input format detection
-							if ((deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &supportsInputFormatDetection) == S_OK) &&
-								supportsInputFormatDetection)
-							{
-								try
-								{
-									deckLinkInputFill = make_com_ptr<DeckLinkInputDevice>(deckLink, kDisplayTimescale);
-								}
-								catch (const std::exception& e)
-								{
-									fprintf(stderr, "%s\n", e.what());
-									continue;
-								}
-								g_audioChannelCount = std::min((uint32_t)maxAudioChannels, g_audioChannelCount);
-								dispatch_printf(printDispatchQueue, "Using input device: %s\n", getDeckLinkDisplayName(deckLink).c_str());
-							}
+				// For scope of sample, only use input devices that support input format detection
+				if ((deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &supportsInputFormatDetection) == S_OK) &&
+					supportsInputFormatDetection)
+				{
+					try
+					{
+						deckLinkInputFill = make_com_ptr<DeckLinkInputDevice>(deckLink, kDisplayTimescale);
+					}
+					catch (const std::exception& e)
+					{
+						fprintf(stderr, "%s\n", e.what());
+						continue;
+					}
+					g_audioChannelCount = std::min((uint32_t)maxAudioChannels, g_audioChannelCount);
+					dispatch_printf(printDispatchQueue, "Using input device: %s\n", getDeckLinkDisplayName(deckLink).c_str());
+				}
 
-							// If input device is half duplex, skip output discovery
-							if (((BMDDuplexMode)duplexMode != bmdDuplexHalf))
-							{
-								std::cout << "Please setup decklink device for half duplex"<< std::endl;
-								exit(0);
-							}
-							continue;
-						}
-
-
+				// If input device is half duplex, skip output discovery
+				if (((BMDDuplexMode)duplexMode != bmdDuplexHalf))
+				{
+					std::cout << "Please setup decklink device for half duplex"<< std::endl;
+					exit(0);
+				}
+				continue;
+			}
 
 
 			if (!deckLinkOutput && (((BMDVideoIOSupport)videoIOSupport & bmdDeviceSupportsPlayback) != 0))
@@ -941,31 +947,31 @@ HRESULT InputLoopThrough(VideoIn* thisData)
 
 
 		// Register input callbacks
-				deckLinkInputFill->onVideoFormatChange([&](BMDDisplayMode displayMode, bool is3D, BMDPixelFormat pixelFormat)
-				{
-					{
-						std::lock_guard<std::mutex> lock(formatDescMutex);
-						formatDesc.displayMode = displayMode;
-						formatDesc.is3D = is3D;
-						formatDesc.pixelFormat = pixelFormat;
-					}
-					deckLinkOutput->cancelWaitForReference();
-					g_loopThroughSessionNotifier.condition.notify_all();
-				});
+		deckLinkInputFill->onVideoFormatChange([&](BMDDisplayMode displayMode, bool is3D, BMDPixelFormat pixelFormat)
+		{
+			{
+				std::lock_guard<std::mutex> lock(formatDescMutex);
+				formatDesc.displayMode = displayMode;
+				formatDesc.is3D = is3D;
+				formatDesc.pixelFormat = pixelFormat;
+			}
+			deckLinkOutput->cancelWaitForReference();
+			g_loopThroughSessionNotifier.condition.notify_all();
+		});
 
 
-				// Register input callbacks
-						deckLinkInputKey->onVideoFormatChange([&](BMDDisplayMode displayMode, bool is3D, BMDPixelFormat pixelFormat)
-						{
-							{
-								std::lock_guard<std::mutex> lock(formatDescMutex);
-								formatDesc.displayMode = displayMode;
-								formatDesc.is3D = is3D;
-								formatDesc.pixelFormat = pixelFormat;
-							}
-							deckLinkOutput->cancelWaitForReference();
-							g_loopThroughSessionNotifier.condition.notify_all();
-						});
+		// Register input callbacks
+		deckLinkInputKey->onVideoFormatChange([&](BMDDisplayMode displayMode, bool is3D, BMDPixelFormat pixelFormat)
+		{
+			{
+				std::lock_guard<std::mutex> lock(formatDescMutex);
+				formatDesc.displayMode = displayMode;
+				formatDesc.is3D = is3D;
+				formatDesc.pixelFormat = pixelFormat;
+			}
+			deckLinkOutput->cancelWaitForReference();
+			g_loopThroughSessionNotifier.condition.notify_all();
+		});
 
 
 		deckLinkInputVideo->onVideoInputArrived([&](std::shared_ptr<LoopThroughVideoFrame> videoFrame) { videoDispatchQueue.dispatch(processVideo, videoFrame, deckLinkOutput,thisData); });

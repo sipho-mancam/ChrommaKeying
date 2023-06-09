@@ -561,7 +561,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 	unsigned int Max_duration=0;
 
 
-	mtxScreenCard.lock();
+//	mtxScreenCard.lock();
 
 	VideoIn decklink_video_in; // Input video
 //	ptrThreadData->p = new Processor(&decklink_video_in);
@@ -571,7 +571,7 @@ void *OutputRenderthread(void *lpParam)//https://developer.nvidia.com/blog/this-
 
 
 //	p->setMutex(&mtxScreenCard);
-	mtxScreenCard.unlock();
+//	mtxScreenCard.unlock();
 //	p.sendDataTo();
 //	VideoIn* decklink_video_in_ptr = p.getVideoIn();
 //	VideoIn decklink_video_in
