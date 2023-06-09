@@ -568,11 +568,9 @@ void Pipeline::run()
 	assert(settings != nullptr);
 	WindowI *maskPreview = this->container->getWindow(WINDOW_NAME_MASK);
 	WindowI *outputWindow = this->container->getWindow(WINDOW_NAME_OUTPUT);
-<<<<<<< HEAD
-=======
+
 	WindowI *main = this->container->getWindow(WINDOW_NAME_MAIN);
 
->>>>>>> new_optimisation
 	Preview prev(this->preproc);
 
 	int outputCounter = 0;
@@ -584,13 +582,11 @@ void Pipeline::run()
 
 		if(input->isOutput())
 		{
-<<<<<<< HEAD
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill()); // load video from the input
-=======
+
 			outputCounter = 0;
 			this->mtx->lock();
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
->>>>>>> new_optimisation
 			preproc->unpack();
 			preproc->create();
 			this->mtx->unlock();
