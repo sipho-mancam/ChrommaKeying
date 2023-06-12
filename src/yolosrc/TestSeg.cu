@@ -163,10 +163,10 @@ cv::cuda::GpuMat m_mask_mat_gpu_scaled_snapshot;
 
 int InitYolov5()
 {
-		char *cwd = getenv("CWD");
-		std::string rootDir(cwd);
-//		std::cout<<rootDir<<std::endl;
 
+//		std::cout<<rootDir<<std::endl;
+	char *cwd = getenv("CWD");
+	std::string rootDir(cwd);
 	  std::string wts_name = "";
 	  std::string engine_name = rootDir+"/res/yolov5s-seg-27.engine";
 	  std::string labels_filename = rootDir+"/res/labels.txt";

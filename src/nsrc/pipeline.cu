@@ -16,6 +16,7 @@
 #include <opencv2/opencv.hpp>
 #include "interfaces.hpp"
 #include <ui.hpp>
+#include "yolo.hpp"
 
 /**** Utils *****/
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
@@ -92,24 +93,7 @@ void IPipeline::convertToRGB()
 
 void IPipeline::rgbToYUYV()
 {
-//	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_8UC3, this->rgbVideo, sizeof(uchar3)*this->iWidth);
-//	cv::cuda::GpuMat output;
-//
-//
-//	cv::cuda::cvtColor(input, output, COLOR_RGB2YCrCb, 4);
-//
-//	cv::Mat prev;
-//
-//	output.download(prev);
-//
-//	imshow("Demo", prev);
-//
-//	cv::cuda::GpuMat augV(output.rows, output.cols, CV_16UC4, this->augVideo, output.rows*output.step);
-//
-//	output.copyTo(augV);
 
-//	this->cudaStatus = cudaMemcpy(this->augVideo, output.data, this->frameSizeUnpacked, cudaMemcpyDeviceToDevice);
-//	this->checkCudaError("copy memory", "augVideo");
 }
 
 
@@ -128,7 +112,6 @@ void Input::init()
 	while(this->input->m_sizeOfFrame == -1)
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
 
-//	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	input->WaitForFrames(-1);
 
 	input->imagelistVideo.ClearAll(0);
@@ -496,20 +479,6 @@ void ChrommaMask::toRGB()
 	assert(this->cudaStatus==cudaSuccess);
 }
 
-void YoloMask::create()
-{
-
-}
-
-uchar* YoloMask::output()
-{
-	return this->maskBuffer;
-}
-
-bool YoloMask::isMask()
-{
-	return this->mask;
-}
 
 void MaskOut::create()
 {
@@ -581,12 +550,9 @@ void Pipeline::run()
 		if(input->isOutput())
 		{
 			outputCounter = 0;
-			this->mtx->lock();
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
 			preproc->create();
-			this->mtx->unlock();
-
 			preproc->convertToRGB();
 
 			prev.load(preproc->getRGB());
@@ -612,10 +578,9 @@ void Pipeline::run()
 				snapShot->convertToRGB();
 				snapShot->takeSnapShot();
 
-				mtx->lock();
 				keyingWindow->loadImage(snapShot->getSnapShot());
+				keyingWindow->captured();
 				keyingWindow->show();
-				mtx->unlock();
 				break;
 
 			case WINDOW_EVENT_SAVE_IMAGE:
@@ -649,7 +614,6 @@ void Pipeline::run()
 		else
 		{
 			outputCounter ++;
-			exit(-1);
 		}
 	}
 }

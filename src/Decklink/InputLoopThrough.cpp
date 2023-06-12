@@ -140,7 +140,6 @@ VideoIn::VideoIn()
 	m_iFrameSizeUnpacked = 0;
 	m_iRGBSizeOF = 0;
 	m_iABGRSize = 0;
-//	m_iABGRSize = 0;
 	m_RowLength = 0;
 	m_iHeight = 0;
 	m_iWidth = 0;

@@ -21,6 +21,7 @@
 #include "events.hpp"
 #include "ui.hpp"
 
+
 #define CUDA_LOOKUP_SIZE 1073741824
 
 
@@ -232,15 +233,29 @@ public:
 	void toRGB();
 };
 
-
 class YoloMask: public IMask
 {
+private:
+	float *batchData; // buffer containing normalized image data put together in a batch of 8. (GPU Memory) planar data(rrrgggbbb)
+	float *outputBufferMask, *outputBufferDetections;
+
+	nvinfer1::IRuntime* runtime;
+	nvinfer1::ICudaEngine* engine;
+	nvinfer1::IExecutionContext* context;
+	cudaStream_t stream;
+
+	void preprocess();
+	void runInference();
+	void initialize();
 public:
-	YoloMask(IPipeline *obj):IMask(obj){}
+	YoloMask(IPipeline *obj);
 	void create() override;
 	uchar* output() override;
 	bool isMask()override;
+	void load(float* d, float*, float*);
+
 };
+
 
 
 class MaskOut: public IMask
@@ -257,8 +272,6 @@ public:
 	void create(); // combine chroma and yolov mask
 	uchar* output();
 };
-
-
 
 
 

@@ -44,7 +44,6 @@
 #include <thread>         // std::this_thread::sleep_for
 #include <chrono>         // std::chrono::seconds
 #include <cuda.h>
-//#include <p-processor.hpp>#
 #include <interfaces.hpp>
 #include <math.h>
 #include <X11/Xlib.h>
@@ -52,6 +51,7 @@
 #include <iostream>       // std::cout
 #include "PosisionUpdateUDP.h"
 #include <thread>
+#include "yolo.hpp"
 
 
 #include "interfaces.hpp"
@@ -1006,6 +1006,8 @@ int main()
 	uchar3* rgbVideo, *vSnapshot, *maskRGB;
 	uint4 *video, *key, *fill, *aVideo, *snapShotV;
 
+	float* inputData, *detectionsOutput, *maskOutput;
+
 	VideoIn decklink;
 
 	Input *in = new Input(&decklink);
@@ -1031,6 +1033,12 @@ int main()
 	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
+
+	// allocate yolo memory
+	allocateMemory((void**)&inputData, kBatchSize * 3 * kInputH * kInputW * sizeof(float));
+	allocateMemory((void**)&detectionsOutput, kBatchSize * kOutputSize1 * sizeof(float));
+	allocateMemory((void**)&maskOutput, kBatchSize * kOutputSize2 * sizeof(float));
+
 
 	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
 
@@ -1091,7 +1099,7 @@ int main()
 
 	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
 
-	while(uiContainer.dispatchKey()!=WINDOW_EVENT_EXIT)
+	while(uiContainer.dispatchKey()!= WINDOW_EVENT_EXIT)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
 		uiContainer.dispatchEvent();

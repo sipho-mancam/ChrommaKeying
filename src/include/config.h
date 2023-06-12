@@ -20,11 +20,11 @@ constexpr static int kNumClass = 2;
 // Classfication model's number of classes
 constexpr static int kClsNumClass = 1000;
 
-constexpr static int kBatchSize = 8;
+constexpr static int kBatchSize = 1;
 
 // Yolo's input width and height must by divisible by 32
-constexpr static int kInputH = 640;
-constexpr static int kInputW = 640;
+constexpr static int kInputH = 1088;
+constexpr static int kInputW = 1920;
 
 // Classfication model's input shape
 constexpr static int kClsInputH = 224;
@@ -51,7 +51,9 @@ const static float kConfThresh = 0.1f;
 const static int kGpuId = 0;
 
 // If your image size is larger than 4096 * 3112, please increase this value
-const static int kMaxInputImageSize = 640 * 640;
+const static int kMaxInputImageSize = kInputW * kInputH;
+
+
 
 //unordered_map<cv::Vec3b> printBackLookUp;
 
