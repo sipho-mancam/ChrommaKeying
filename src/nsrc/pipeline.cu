@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaarithm.hpp>
 #include <opencv2/opencv.hpp>
 #include "interfaces.hpp"
 #include <ui.hpp>
@@ -76,6 +77,30 @@ void IPipeline::convertToRGB()
 
 	yuyvUnpackedToRGB<<<grid, block>>>(
 			this->augVideo,
+			this->rgbVideo,
+			this->iWidth/2,
+			this->iWidth,
+			this->iHeight,
+			this->key
+		);
+
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch Kernel", "Device");
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("Synchronize device", " host");
+
+}
+
+void IPipeline::convertToRGB(uint4* src)
+{
+
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(this->iWidth/2, block.x), iDivUp(this->iHeight, block.y));
+
+
+	yuyvUnpackedToRGB<<<grid, block>>>(
+			src,
 			this->rgbVideo,
 			this->iWidth/2,
 			this->iWidth,
@@ -269,11 +294,16 @@ void Preprocessor::unpack()
 
 void Preprocessor::create()
 {
-	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_16UC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
-	cv::cuda::GpuMat output;
-	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(9,9), -1);
-	gaus->apply(input, output);
-	output.copyTo(input);
+	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_32SC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
+	cv::cuda::GpuMat output;//(this->iHeight, this->iWidth, CV_32SC4);
+
+	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(13,13), -1);
+	gaus->apply(input, input);
+
+//	std::vector<cv::cuda::GpuMat> res;
+//	cv::cuda::split(input, res);
+//
+//	Ptr<cv::cuda::CLAHE> clahe = cv::cuda::createCLAHE();
 
 }
 
@@ -378,17 +408,16 @@ void IMask::dilate(int size)
 
 void IMask::openMorph(int size)
 {
-	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
-	chrommaMaskInput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskInput(this->iHeight,this->iWidth,CV_8UC1, this->maskBuffer, this->iWidth*sizeof(uchar));
 	cv::cuda::GpuMat chrommaMaskOutput;
 
 	int an = size;
 	cv::Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1));
-	Ptr<cv::cuda::Filter> openingFilter = cv::cuda::createMorphologyFilter(MORPH_OPEN, chrommaMaskInput.type(), element);
+	Ptr<cv::cuda::Filter> openingFilter = cv::cuda::createMorphologyFilter(MORPH_OPEN, chrommaMaskInput.type(), element, cv::Point(-1, -1), 2);
 	openingFilter->apply(chrommaMaskInput, chrommaMaskOutput);
 
-	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
-	this->checkCudaError("copy memory", "maskBuffer: openMorph");
+	chrommaMaskOutput.copyTo(chrommaMaskInput);
+
 }
 
 ChrommaMask::ChrommaMask(IPipeline* obj, LookupTable* t): IMask(obj)
@@ -555,6 +584,8 @@ void Pipeline::run()
 			preproc->create();
 			preproc->convertToRGB();
 
+//			this->yoloMask->create();
+
 			prev.load(preproc->getRGB());
 			prev.preview(main->getHandle());
 
@@ -573,7 +604,7 @@ void Pipeline::run()
 					prev.preview(maskPreview->getHandle());
 
 					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
-					keyer->convertToRGB();
+//					keyer->convertToRGB();
 				}
 				snapShot->convertToRGB();
 				snapShot->takeSnapShot();
@@ -592,6 +623,7 @@ void Pipeline::run()
 			if(chrommaMask->isMask())
 			{
 				chrommaMask->output();
+//				chrommaMask->openMorph(1);
 				#ifndef DEBUG
 				chrommaMask->toRGB();
 				prev.load(chrommaMask->getMaskRGB());

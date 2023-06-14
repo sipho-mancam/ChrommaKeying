@@ -40,5 +40,11 @@
 #define WINDOW_TRACKBAR_KEYBOTTOM "Key Bottom"
 #define WINDOW_TRACKBAR_NMS "NMS"
 
-
+#define VK_LCONTROL 0
+#define VK_F1 190
+#define VK_F2 191
+#define VK_F3 192
+#define VK_F4 193
+#define VK_F5 194
+#define VK_F10 199
 #endif /* SRC_NSRC_EVENTS_HPP_ */

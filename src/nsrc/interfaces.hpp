@@ -47,6 +47,7 @@ public:
 //	virtual void output() = 0;
 	virtual void init() {}
 	virtual void convertToRGB();
+	virtual void convertToRGB(uint4* src);
 	virtual void rgbToYUYV();
 
 	uint4* getVideo(){return this->video;}
@@ -238,6 +239,10 @@ class YoloMask: public IMask
 private:
 	float *batchData; // buffer containing normalized image data put together in a batch of 8. (GPU Memory) planar data(rrrgggbbb)
 	float *outputBufferMask, *outputBufferDetections;
+	float *maskOutCpu, *detectionsOutCpu;
+	float **gpuBuffs;
+
+	bool started, loaded;
 
 	nvinfer1::IRuntime* runtime;
 	nvinfer1::ICudaEngine* engine;
@@ -247,12 +252,14 @@ private:
 	void preprocess();
 	void runInference();
 	void initialize();
+	void postprocess();
 public:
 	YoloMask(IPipeline *obj);
 	void create() override;
 	uchar* output() override;
 	bool isMask()override;
 	void load(float* d, float*, float*);
+	void load(float **gpuB){this->gpuBuffs = gpuB;}
 
 };
 

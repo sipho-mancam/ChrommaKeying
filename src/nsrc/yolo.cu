@@ -14,8 +14,7 @@ static Logger gLogger;
 
 
 void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, int batchSize) {
-  context.enqueue(batchSize, buffers, stream, nullptr);
-  cudaStreamSynchronize(stream);
+
 }
 
 
@@ -30,10 +29,21 @@ YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members shoul
 	this->stream;
 	this->cudaStatus = cudaStreamCreate(&stream);
 	this->checkCudaError("create cuda stream", "Yolo Mask Constructor");
+	this->started = false;
+	this->loaded = false;
+
+	this->maskOutCpu = new float[kBatchSize * kOutputSize2];
+	this->detectionsOutCpu = new float[kBatchSize * kOutputSize1];
+
+	memset(this->detectionsOutCpu, 0, kBatchSize * kOutputSize1*sizeof(float));
+	memset(this->maskOutCpu, 0 , kBatchSize * kOutputSize2*sizeof(float));
+
+	this->initialize();
 }
 
 void YoloMask::initialize()
 {
+	this->started = false;
 	cudaSetDevice(kGpuId);
 	char *cwd = getenv("CWD");
 	std::string rootDir(cwd);
@@ -54,10 +64,12 @@ void YoloMask::initialize()
 	// Note that indices are guaranteed to be less than IEngine::getNbBindings()
 	const int inputIndex = engine->getBindingIndex(kInputTensorName);
 	const int outputIndex1 = engine->getBindingIndex(kOutputTensorName);
-	const int outputIndex2 = engine->getBindingIndex("proto");
+	const int outputIndex2 = engine->getBindingIndex("proto"); // mask
 	assert(inputIndex == 0);
 	assert(outputIndex1 == 1);
 	assert(outputIndex2 == 2);
+
+	this->started = true;
 }
 
 
@@ -89,27 +101,62 @@ void YoloMask::preprocess()
 	int threads = 256;
 	int blocks = ceil(jobs / (float)threads);
 
+	cv::cuda::GpuMat rgbData(this->iHeight, this->iWidth, CV_8UC3, this->rgbVideo, this->iWidth*sizeof(uchar3));
+
 	warpaffine_kernel<<<blocks, threads, 0, stream>>>(
-	  (uchar*)this->rgbVideo, src_width * 3, src_width,
-	  src_height, this->batchData, dst_width,
+	  rgbData.ptr(), src_width * 3, src_width,
+	  src_height, this->gpuBuffs[0], dst_width,
 	  dst_height, 128, d2s, jobs);
 }
 
 void YoloMask::runInference()
 {
-	float *buffers[3];
-	buffers[0] = this->batchData;
-	buffers[1] = this->outputBufferDetections;
-	buffers[2] = this->outputBufferMask;
+//	float *buffers[3];
+//	buffers[0] = this->batchData;
+//	buffers[1] = this->outputBufferDetections;
+//	buffers[2] = this->outputBufferMask;
 
-	infer(*context, stream, (void**)buffers, kBatchSize);
+
+	context->enqueue(kBatchSize,(void**)this->gpuBuffs, stream, nullptr);
+
+	this->cudaStatus = cudaMemcpyAsync(this->detectionsOutCpu, this->gpuBuffs[1], kBatchSize * kOutputSize1 * sizeof(float), cudaMemcpyDeviceToHost, stream);
+	this->checkCudaError("Copy memory", "cpu memory");
+	this->cudaStatus = cudaMemcpyAsync(this->maskOutCpu, this->gpuBuffs[2], kBatchSize * kOutputSize2 * sizeof(float), cudaMemcpyDeviceToHost, stream);
+	this->checkCudaError("Copy memory", "cpu memory");
+	cudaDeviceSynchronize();
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("synchronize device", "cpu memory");
+
+	for(int i=0; i< kBatchSize * kOutputSize1-1; i++)
+	{
+		std::cout<<this->detectionsOutCpu[i]<<std::endl;
+	}
+
 }
 
+void YoloMask::postprocess()
+{
+	// NMS
+	std::vector<std::vector<Detection>> res_batch;
+	batch_nms(res_batch, this->detectionsOutCpu, kBatchSize, kOutputSize1, kConfThresh, kNmsThresh);
+
+	for (size_t b = 0; b < kBatchSize; b++)
+	{
+		auto& res = res_batch[b];
+		auto masks = process_mask_s(&this->maskOutCpu[b * kOutputSize2], kOutputSize2, res);
+	}
+
+
+}
 
 
 void YoloMask::create()
 {
-
+	if(!this->loaded) return;
+	if(!this->started)return;
+	this->preprocess();
+	this->runInference();
+	this->postprocess();
 }
 
 uchar* YoloMask::output()
@@ -126,5 +173,6 @@ void YoloMask::load(float* bD, float* oD, float* oM)
 	this->batchData = bD;
 	this->outputBufferDetections = oD;
 	this->outputBufferMask = oM;
+	this->loaded = true;
 }
 

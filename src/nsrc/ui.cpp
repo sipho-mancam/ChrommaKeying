@@ -116,9 +116,6 @@ void KeyingWindow::process()
 	this->gMat.data = (uchar*)rgbData;
 	gMat.download(this->previewMat);
 	cv::resizeWindow(this->windowName, this->iWidth, this->iHeight);
-
-//	if(!this->captureKey)return;
-//	if(!this->mEnabled) return;
 }
 
 void KeyingWindow::show()

@@ -60,13 +60,17 @@ static bool cmp(const Detection& a, const Detection& b) {
 
 void nms(std::vector<Detection>& res, float* output, float conf_thresh,
 		float nms_thresh) {
+
 	int det_size = sizeof(Detection) / sizeof(float);
 	std::map<float, std::vector<Detection>> m;
 	for (int i = 0; i < output[0] && i < kMaxNumOutputBbox; i++) {
+
 		if (output[1 + det_size * i + 4] <= conf_thresh)
 			continue;
+
 		Detection det;
 		memcpy(&det, &output[1 + det_size * i], det_size * sizeof(float));
+
 		if (m.count(det.class_id) == 0)
 			m.emplace(det.class_id, std::vector<Detection>());
 		m[det.class_id].push_back(det);
@@ -401,27 +405,32 @@ void process_mask_to_final(cv::cuda::GpuMat *seg_mat,int batchindex, const float
 	std::for_each(threadlist.begin(), threadlist.end(),[](std::thread* &th) {th->join();});
 }
 
-std::vector<cv::Mat*> process_mask(const float* proto, int proto_size,
-		std::vector<Detection>& dets) {
-	std::vector<cv::Mat*> masks;
-//  std::cout<<"End"<<std::endl;
+std::vector<cv::Mat> process_mask_s(const float* proto, int proto_size, std::vector<Detection>& dets) {
+	std::vector<cv::Mat> masks;
+	for (size_t i = 0; i < dets.size(); i++)
+	{
 
-	std::vector<std::thread*> threadlist;
-//  std::thread first (createmask,5);
-	//first.join();
-	int iTest = 0;
-	for (size_t i = 0; i < dets.size(); i++) {
-
-		std::thread *first = new std::thread(createmask, iTest++, dets[i],
-				proto, proto_size, &masks);
-		threadlist.push_back(first);
+		cv::Mat mask_mat = cv::Mat::zeros(kInputH / 4, kInputW / 4, CV_32FC1);
+		auto r = get_downscale_rect(dets[i].bbox, 4);
 
 
+		for (int x = r.x; x < r.x + r.width; x++)
+		{
+		  for (int y = r.y; y < r.y + r.height; y++)
+		  {
+
+			  float e = 0.0f;
+			  for (int j = 0; j < 32; j++)
+			  {
+				  e += dets[i].mask[j] * proto[j * proto_size / 32 + y * mask_mat.cols + x];
+			  }
+			  e = 1.0f / (1.0f + expf(-e));
+			  mask_mat.at<float>(y, x) = e;
+		  }
+		}
+		cv::resize(mask_mat, mask_mat, cv::Size(kInputW, kInputH));
+		masks.push_back(mask_mat);
 	}
-
-	std::for_each(threadlist.begin(), threadlist.end(),
-			[](std::thread* &th) {th->join();});
-
 	return masks;
 }
 

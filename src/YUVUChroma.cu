@@ -3147,13 +3147,6 @@ __global__ void yuyvUnpackedGenerateMask(uint4* src_Video_Unapc,uint4* src__Key_
 		}
 
 
-
-		/*	while (GetBit3(bitpos1, LookupTable))
-			{
-				ClearBit3(bitpos1, LookupTable);
-			}
-			*/
-			 
 			
 		if (maskUpload[y * dstAlignedWidth + (x * 2) + 1] == 128)
 		{
@@ -4011,7 +4004,7 @@ void PrepareYoloData(bool bTakeMask,float fnms)
 	dim3 gridRGB_Split(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080 / 2, blockRGB.y));
 	//dim3 gridRGB(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080, blockRGB.y));
 
-	yuyvUnPackedToPlanarRGB_Split<< <gridRGB_Split, blockRGB >> > ((uint4*)YUV_Unpacked_Video, (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[0], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[1], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[2], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[3], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
+	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>> ((uint4*)YUV_Unpacked_Video, (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[0], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[1], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[2], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[3], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
 	//CUDA_CHECK_RETURN(cudaDeviceSynchronize());
 
 	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>>((uint4*) (YUV_Unpacked_Video+dstAlignedWidthUnpackedData),(uint8_t *) m_RGBScaledFramePlanarDetectorptrs[4], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[5], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[6], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[7], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);

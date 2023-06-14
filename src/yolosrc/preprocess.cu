@@ -72,11 +72,6 @@ __global__ void warpaffine_kernel(
     c2 = w1 * v1[2] + w2 * v2[2] + w3 * v3[2] + w4 * v4[2];
   }
 
-  // bgr to rgb 
-  float t = c2;
-  c2 = c0;
-  c0 = t;
-
   // normalization
   c0 = c0 / 255.0f;
   c1 = c1 / 255.0f;
@@ -90,6 +85,7 @@ __global__ void warpaffine_kernel(
   *pdst_c0 = c0;
   *pdst_c1 = c1;
   *pdst_c2 = c2;
+
 }
 
 void cuda_preprocess(
