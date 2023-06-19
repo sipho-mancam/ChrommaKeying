@@ -375,9 +375,8 @@ void IMask::init()
 
 void IMask::erode(int size)
 {
-	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer);
-	chrommaMaskInput.step=this->iWidth*2;
-	cv::cuda::GpuMat chrommaMaskOutput;
+	cv::cuda::GpuMat chrommaMaskInput(this->iHeight,this->iWidth,CV_8UC1, this->maskBuffer, this->iWidth*sizeof(uchar));
+		cv::cuda::GpuMat chrommaMaskOutput;
 
 	// erode output mask
 	int an = size;
@@ -385,9 +384,7 @@ void IMask::erode(int size)
 	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, chrommaMaskInput.type(), element);
 	erodeFilter->apply(chrommaMaskInput, chrommaMaskOutput);
 
-
-	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
-	this->checkCudaError("copy memory", "maskBuffer");
+	chrommaMaskOutput.copyTo(chrommaMaskInput);
 }
 
 void IMask::dilate(int size)
@@ -535,7 +532,7 @@ void Keyer::create(int blend=480)
 	const int maskWidth = this->iWidth;
 
 	keyAndFill<<<grid, block>>>(
-			this->augVideo, // Remember to replace with video after testing...
+			this->video, // Remember to replace with video after testing...
 			this->fill,
 			this->key,
 			this->iWidth,
@@ -582,12 +579,12 @@ void Pipeline::run()
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
 			preproc->create();
-			preproc->convertToRGB();
+//			preproc->convertToRGB();
 
 			yoloMask->test();
 
-			prev.load(preproc->getRGB());
-			prev.preview(main->getHandle());
+//			prev.load(preproc->getRGB());
+//			prev.preview(main->getHandle());
 
 			switch(event)
 			{
@@ -623,7 +620,10 @@ void Pipeline::run()
 			if(chrommaMask->isMask())
 			{
 				chrommaMask->output();
-//				chrommaMask->openMorph(1);
+//				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
+				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
+//				chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
+
 				#ifndef DEBUG
 				chrommaMask->toRGB();
 				prev.load(chrommaMask->getMaskRGB());
@@ -631,7 +631,7 @@ void Pipeline::run()
 				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
 				// TODO: keyer->pack() -> pack the output video filled with the key.
 				// TODO: input->output() -> send output to the deckink
-				keyer->convertToRGB();
+				keyer->convertToRGB(keyer->getVideo());
 				prev.load(keyer->getRGB());
 				prev.preview(outputWindow->getHandle());
 				#endif

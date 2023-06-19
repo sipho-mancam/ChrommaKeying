@@ -102,14 +102,14 @@ void YoloMask::prepareImages()
 	mat.download(this->frame);
 	this->frame.create(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3);
 	this->__cutToPanels();
-
-	int counter = 0;
-	for(auto& img : this->img_batch)
-	{
-		cv::imshow("image"+counter, img);
-		counter++;
-	}
-	cv::waitKey(0);
+//
+//	int counter = 0;
+//	for(auto& img : this->img_batch)
+//	{
+//		cv::imshow("image"+counter, img);
+//		counter++;
+//	}
+//	cv::waitKey(0);
 }
 
 void YoloMask::preprocess()
