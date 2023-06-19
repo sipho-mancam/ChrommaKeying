@@ -18,6 +18,8 @@ void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, int
 }
 
 
+
+
 YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members should be properly initialized")
 {
 	this->outputBufferDetections = nullptr;
@@ -72,6 +74,43 @@ void YoloMask::initialize()
 	this->started = true;
 }
 
+void YoloMask::__cutToPanels()
+{
+	// input is fixed to width*2 and height/2 (Interlacing problem)
+	int n = 3;
+	int width = this->frame.cols/(2*n);
+	int overlappingFactor = width/n+ width%n;
+	int lastEnd = 0;
+
+	for(int i=0; i<(n+1); i++)
+	{
+		cv::Rect roi(cv::Point(lastEnd, 0), cv::Size(width, this->frame.rows));
+		this->img_batch.push_back(this->frame(roi));
+		lastEnd += width-overlappingFactor;
+	}
+
+}
+
+void YoloMask::prepareImages()
+{
+	this->img_batch.clear();
+	// convert to RGB,
+	// cut to 4 panels
+	// send it to yolo
+	this->convertToRGB();
+	cv::cuda::GpuMat mat(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3, this->rgbVideo);
+	mat.download(this->frame);
+	this->frame.create(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3);
+	this->__cutToPanels();
+
+	int counter = 0;
+	for(auto& img : this->img_batch)
+	{
+		cv::imshow("image"+counter, img);
+		counter++;
+	}
+	cv::waitKey(0);
+}
 
 void YoloMask::preprocess()
 {

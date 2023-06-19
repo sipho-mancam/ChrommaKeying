@@ -138,6 +138,7 @@ int main()
 	pipeline->addPipelineObject(yolo, OBJECT_YOLO_MASK);
 	pipeline->addPipelineObject(keyer, OBJECT_KEYER);
 
+
 	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
 
 	while(uiContainer.dispatchKey()!= WINDOW_EVENT_EXIT)

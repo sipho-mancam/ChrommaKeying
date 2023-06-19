@@ -584,7 +584,7 @@ void Pipeline::run()
 			preproc->create();
 			preproc->convertToRGB();
 
-//			this->yoloMask->create();
+			yoloMask->test();
 
 			prev.load(preproc->getRGB());
 			prev.preview(main->getHandle());

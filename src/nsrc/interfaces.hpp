@@ -242,6 +242,9 @@ private:
 	float *maskOutCpu, *detectionsOutCpu;
 	float **gpuBuffs;
 
+	std::vector<cv::Mat> img_batch;
+	cv::Mat frame;
+
 	bool started, loaded;
 
 	nvinfer1::IRuntime* runtime;
@@ -253,6 +256,8 @@ private:
 	void runInference();
 	void initialize();
 	void postprocess();
+	void prepareImages();
+	void __cutToPanels();
 public:
 	YoloMask(IPipeline *obj);
 	void create() override;
@@ -260,6 +265,11 @@ public:
 	bool isMask()override;
 	void load(float* d, float*, float*);
 	void load(float **gpuB){this->gpuBuffs = gpuB;}
+
+	void test()
+	{
+		this->prepareImages();
+	}
 
 };
 
