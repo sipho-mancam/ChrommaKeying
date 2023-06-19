@@ -266,10 +266,13 @@ public:
 	void load(float* d, float*, float*);
 	void load(float **gpuB){this->gpuBuffs = gpuB;}
 
-	void test()
-	{
-		this->prepareImages();
-	}
+	void getBatch();
+
+
+//	void test()
+//	{
+//		this->prepareImages();
+//	}
 
 };
 

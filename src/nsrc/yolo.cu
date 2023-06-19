@@ -93,10 +93,11 @@ void YoloMask::__cutToPanels()
 
 void YoloMask::prepareImages()
 {
-	this->img_batch.clear();
 	// convert to RGB,
 	// cut to 4 panels
 	// send it to yolo
+
+	this->img_batch.clear();
 	this->convertToRGB();
 	cv::cuda::GpuMat mat(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3, this->rgbVideo);
 	mat.download(this->frame);
@@ -181,8 +182,8 @@ void YoloMask::postprocess()
 
 	for (size_t b = 0; b < kBatchSize; b++)
 	{
-		auto& res = res_batch[b];
-		auto masks = process_mask_s(&this->maskOutCpu[b * kOutputSize2], kOutputSize2, res);
+//		auto& res = res_batch[b];
+//		auto masks = process_mask_s(&this->maskOutCpu[b * kOutputSize2], kOutputSize2, res);
 	}
 
 
@@ -214,4 +215,80 @@ void YoloMask::load(float* bD, float* oD, float* oM)
 	this->outputBufferMask = oM;
 	this->loaded = true;
 }
+
+
+void YoloMask::getBatch()
+{
+	this->prepareImages();
+	yoloRun(this->img_batch);
+}
+
+
+void yoloRun(std::vector<cv::Mat> img_batch) {
+  cudaSetDevice(kGpuId);
+
+
+  char *cwd = getenv("CWD");
+  std::string rootDir(cwd);
+  std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
+
+  // Deserialize the engine from file
+  IRuntime* runtime = nullptr;
+  ICudaEngine* engine = nullptr;
+  IExecutionContext* context = nullptr;
+  deserialize_engine(engine_name, &runtime, &engine, &context);
+  cudaStream_t stream;
+  CUDA_CHECK(cudaStreamCreate(&stream));
+
+  // Init CUDA preprocessing
+  cuda_preprocess_init(kMaxInputImageSize);
+
+  // Prepare cpu and gpu buffers
+  float* gpu_buffers[3];
+  float* cpu_output_buffer1 = nullptr;
+  float* cpu_output_buffer2 = nullptr;
+  prepare_buffers(engine, &gpu_buffers[0], &gpu_buffers[1], &gpu_buffers[2], &cpu_output_buffer1, &cpu_output_buffer2);
+
+    // Preprocess
+  cuda_batch_preprocess(img_batch, gpu_buffers[0], kInputW, kInputH, stream);
+
+    // Run inference
+//  std::cout<<"I execute"<<std::endl;
+   auto start = std::chrono::system_clock::now();
+   infer(*context, stream, (void**)gpu_buffers, cpu_output_buffer1, cpu_output_buffer2, kBatchSize);
+   auto end = std::chrono::system_clock::now();
+   std::cout << "inference time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+
+    // NMS
+   std::vector<std::vector<Detection>> res_batch;
+   batch_nms(res_batch, cpu_output_buffer1, img_batch.size(), kOutputSize1, kConfThresh, kNmsThresh);
+
+	// Draw result and save image
+   for (size_t b = 0; b < img_batch.size(); b++) {
+	  auto& res = res_batch[b];
+	  cv::Mat img = img_batch[b];
+
+	  auto masks = process_mask(&cpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
+	  draw_mask_bbox(img, res, masks);
+//	  cv::imwrite("_" + img_name_batch[b], img);
+	}
+
+  // Release stream and buffers
+  cudaStreamDestroy(stream);
+  CUDA_CHECK(cudaFree(gpu_buffers[0]));
+  CUDA_CHECK(cudaFree(gpu_buffers[1]));
+  CUDA_CHECK(cudaFree(gpu_buffers[2]));
+  delete[] cpu_output_buffer1;
+  delete[] cpu_output_buffer2;
+  cuda_preprocess_destroy();
+  // Destroy the engine
+  context->destroy();
+  engine->destroy();
+  runtime->destroy();
+
+}
+
+
+
+
 

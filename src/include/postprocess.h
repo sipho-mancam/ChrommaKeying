@@ -14,8 +14,7 @@ void draw_bbox(std::vector<cv::Mat>& img_batch, std::vector<std::vector<Detectio
 
 void process_mask_to_final(cv::cuda::GpuMat *seg_mat,int batchindex,const float* proto, int proto_size, std::vector<Detection>* dets);
 //std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vector<Detection>& dets);
-std::vector<cv::Mat*> process_mask(const float* proto, int proto_size, std::vector<Detection>& dets);
-void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::Mat*>& masks, std::unordered_map<int, std::string>& labels_map);
-
+std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vector<Detection>& dets);
+void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::Mat>& mask);
 void create_mask(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::Mat>& masks, std::unordered_map<int, std::string>& labels_map);
 std::vector<cv::Mat> process_mask_s(const float* proto, int proto_size, std::vector<Detection>& dets);

@@ -20,11 +20,11 @@ constexpr static int kNumClass = 10;
 // Classfication model's number of classes
 constexpr static int kClsNumClass = 1000;
 
-constexpr static int kBatchSize = 1;
+constexpr static int kBatchSize = 4;
 
 // Yolo's input width and height must by divisible by 32
-constexpr static int kInputH = 1920;
-constexpr static int kInputW = 1088;
+constexpr static int kInputH = 640;
+constexpr static int kInputW = 540;
 
 // Classfication model's input shape
 constexpr static int kClsInputH = 224;
@@ -37,7 +37,7 @@ constexpr static int kMaxNumOutputBbox = 1000;
 constexpr static int kNumAnchor = 3;
 
 // The bboxes whose confidence is lower than kIgnoreThresh will be ignored in yololayer plugin.
-constexpr static float kIgnoreThresh = 0.1f;
+constexpr static float kIgnoreThresh = 0.4f;
 
 /* --------------------------------------------------------
  * These configs are NOT related to tensorrt model, if these are changed,
@@ -45,8 +45,8 @@ constexpr static float kIgnoreThresh = 0.1f;
  * --------------------------------------------------------*/
 
 // NMS overlapping thresh and final detection confidence thresh
-const static float kNmsThresh = 0.1f;
-const static float kConfThresh = 0.1f;
+const static float kNmsThresh = 0.4f;
+const static float kConfThresh = 0.5f;
 
 const static int kGpuId = 0;
 

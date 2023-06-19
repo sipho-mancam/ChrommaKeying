@@ -29,8 +29,11 @@ const static int kOutputSize2 = 32 * (kInputH / 4) * (kInputW / 4);
 
 __global__ void warpaffine_kernel(uint8_t* , int , int ,int , float* , int ,int , uint8_t , AffineMatrix ,int );
 void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, int batchSize);
+void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, float* output1, int batchSize);
+void prepare_buffers(ICudaEngine* engine, float** gpu_input_buffer, float** gpu_output_buffer1, float** gpu_output_buffer2, float** cpu_output_buffer1, float** cpu_output_buffer2);
+void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, float* output1, float* output2, int batchSize);
 void serialize_engine(unsigned int max_batchsize, float& gd, float& gw, std::string& wts_name, std::string& engine_name);
 void deserialize_engine(std::string& engine_name, IRuntime** runtime, ICudaEngine** engine, IExecutionContext** context);
-
+void yoloRun(std::vector<cv::Mat> res);
 
 #endif /* SRC_NSRC_YOLO_HPP_ */

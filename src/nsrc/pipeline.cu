@@ -581,7 +581,6 @@ void Pipeline::run()
 			preproc->create();
 //			preproc->convertToRGB();
 
-			yoloMask->test();
 
 //			prev.load(preproc->getRGB());
 //			prev.preview(main->getHandle());
@@ -589,6 +588,13 @@ void Pipeline::run()
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
+				snapShot->convertToRGB();
+				snapShot->takeSnapShot();
+
+				keyingWindow->loadImage(snapShot->getSnapShot());
+				keyingWindow->captured();
+				keyingWindow->show();
+
 				chrommaMask->output();
 				if(chrommaMask->isMask())
 				{
@@ -599,16 +605,9 @@ void Pipeline::run()
 
 					prev.load(chrommaMask->getMaskRGB());
 					prev.preview(maskPreview->getHandle());
-
-					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
-//					keyer->convertToRGB();
+//					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
 				}
-				snapShot->convertToRGB();
-				snapShot->takeSnapShot();
 
-				keyingWindow->loadImage(snapShot->getSnapShot());
-				keyingWindow->captured();
-				keyingWindow->show();
 				break;
 
 			case WINDOW_EVENT_SAVE_IMAGE:
@@ -619,6 +618,7 @@ void Pipeline::run()
 
 			if(chrommaMask->isMask())
 			{
+//				yoloMask->getBatch();
 				chrommaMask->output();
 //				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
