@@ -376,7 +376,7 @@ void IMask::init()
 void IMask::erode(int size)
 {
 	cv::cuda::GpuMat chrommaMaskInput(this->iHeight,this->iWidth,CV_8UC1, this->maskBuffer, this->iWidth*sizeof(uchar));
-		cv::cuda::GpuMat chrommaMaskOutput;
+	cv::cuda::GpuMat chrommaMaskOutput;
 
 	// erode output mask
 	int an = size;
@@ -389,8 +389,7 @@ void IMask::erode(int size)
 
 void IMask::dilate(int size)
 {
-	cv::cuda::GpuMat chrommaMaskInput(this->iWidth/2,this->iHeight*2,CV_8UC1, this->maskBuffer,Mat::CONTINUOUS_FLAG);
-	chrommaMaskInput.step=this->iWidth*2;
+	cv::cuda::GpuMat chrommaMaskInput(this->iHeight,this->iWidth,CV_8UC1, this->maskBuffer, this->iWidth*sizeof(uchar));
 	cv::cuda::GpuMat chrommaMaskOutput;
 
 	// Dilate the output mask
@@ -399,8 +398,7 @@ void IMask::dilate(int size)
 	Ptr<cv::cuda::Filter> erodeFilter2 = cv::cuda::createMorphologyFilter(MORPH_DILATE, chrommaMaskInput.type(), element);
 	erodeFilter2->apply(chrommaMaskInput, chrommaMaskOutput);
 
-	this->cudaStatus = cudaMemcpy(this->maskBuffer, chrommaMaskOutput.data, this->iHeight*this->iWidth*sizeof(uchar), cudaMemcpyDeviceToDevice);
-	this->checkCudaError("copy memory", "maskBuffer");
+	chrommaMaskOutput.copyTo(chrommaMaskInput);
 }
 
 void IMask::openMorph(int size)
@@ -620,7 +618,7 @@ void Pipeline::run()
 			{
 //				yoloMask->getBatch();
 				chrommaMask->output();
-//				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
+				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 //				chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 
