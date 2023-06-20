@@ -15,6 +15,7 @@
 #include "interfaces.hpp"
 #include "yolo.hpp"
 #include <ui.hpp>
+#include "helpers.hpp"
 
 #define MAX_PATH 260
 
@@ -31,6 +32,13 @@ using namespace cv::cuda;
 
 int main()
 {
+
+	std::vector<float> hist = {0.1, 0.2, 0.3};
+
+	cv::Mat output;
+
+	drawHistogram(hist, output);
+
 	std::mutex mtxScreenCard;
 	static int iIndex=0;
 	static int iFrameIndex=0;
