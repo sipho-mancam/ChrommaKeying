@@ -57,15 +57,15 @@ struct WindowSettings
 public:
 	WindowSettings()
 	{
-		m_iUV_Diam=4;
-		m_iLum_Diam=2;
+		m_iUV_Diam=0;
+		m_iLum_Diam=5;
 		m_iOuter_Diam=14;
 		m_iErase_Diam=15;
 		m_iErase_Lum_Diam=15;
 		m_cunnyb=125;
 		m_cunnyt=274;
-		m_iErode=2;
-		m_iDilate=1;
+		m_iErode=0;
+		m_iDilate=0;
 		m_BlendPos = 0;
 		m_iLowerlimit = 80;
 		m_iUpperlimit=80;

@@ -18,6 +18,9 @@
 #include "interfaces.hpp"
 //#include <NvInfer.hpp>
 
+
+
+
 using namespace nvinfer1;
 
 struct AffineMatrix {
@@ -35,5 +38,8 @@ void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, flo
 void serialize_engine(unsigned int max_batchsize, float& gd, float& gw, std::string& wts_name, std::string& engine_name);
 void deserialize_engine(std::string& engine_name, IRuntime** runtime, ICudaEngine** engine, IExecutionContext** context);
 void yoloRun(std::vector<cv::Mat> res);
+void initYolo();
+
+
 
 #endif /* SRC_NSRC_YOLO_HPP_ */

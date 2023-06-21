@@ -115,10 +115,7 @@ std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vecto
           e += dets[i].mask[j] * proto[j * proto_size / 32 + y * mask_mat.cols + x];
         }
         e = 1.0f / (1.0f + expf(-e));
-
-
         mask_mat.at<float>(y, x) = e;
-
       }
     }
     cv::resize(mask_mat, mask_mat, cv::Size(kInputW, kInputH));
@@ -153,7 +150,6 @@ void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::
                                          0x92CC17, 0x3DDB86, 0x1A9334, 0x00D4BB, 0x2C99A8, 0x00C2FF,
                                          0x344593, 0x6473FF, 0x0018EC, 0x8438FF, 0x520085, 0xCB38FF,
                                          0xFF95C8, 0xFF37C7};
-
   for (size_t i = 0; i < dets.size(); i++) {
     cv::Mat img_mask = scale_mask(masks[i], img);
     auto color = colors[(int)dets[i].class_id % colors.size()];
@@ -170,26 +166,22 @@ void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::
       }
     }
 
-    cv::rectangle(img, r, bgr, 2);
-
-    cv::imshow("Mask Preview Image", img);
-
-    cv::waitKey(0);
-
-    // Get the size of the text
+//    cv::rectangle(img, r, bgr, 2);
+//
+//    // Get the size of the text
 //    cv::Size textSize = cv::getTextSize(labels_map[(int)dets[i].class_id] + " " + to_string_with_precision(dets[i].conf), cv::FONT_HERSHEY_PLAIN, 1.2, 2, NULL);
-    // Set the top left corner of the rectangle
+//    // Set the top left corner of the rectangle
 //    cv::Point topLeft(r.x, r.y - textSize.height);
-
-    // Set the bottom right corner of the rectangle
+//
+//    // Set the bottom right corner of the rectangle
 //    cv::Point bottomRight(r.x + textSize.width, r.y + textSize.height);
-
-    // Set the thickness of the rectangle lines
+//
+//    // Set the thickness of the rectangle lines
 //    int lineThickness = 2;
-
-    // Draw the rectangle on the image
+//
+//    // Draw the rectangle on the image
 //    cv::rectangle(img, topLeft, bottomRight, bgr, -1);
-
+//
 //    cv::putText(img, labels_map[(int)dets[i].class_id] + " " + to_string_with_precision(dets[i].conf), cv::Point(r.x, r.y + 4), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar::all(0xFF), 2);
 
   }

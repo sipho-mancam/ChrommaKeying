@@ -616,7 +616,7 @@ void Pipeline::run()
 
 			if(chrommaMask->isMask())
 			{
-//				yoloMask->getBatch();
+				yoloMask->getBatch();
 				chrommaMask->output();
 				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);

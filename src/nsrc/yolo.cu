@@ -45,31 +45,33 @@ YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members shoul
 
 void YoloMask::initialize()
 {
-	this->started = false;
-	cudaSetDevice(kGpuId);
-	char *cwd = getenv("CWD");
-	std::string rootDir(cwd);
-	std::string engine_name = rootDir+"/res/yolov5s-seg-27.engine";
+//	this->started = false;
+//	cudaSetDevice(kGpuId);
+//	char *cwd = getenv("CWD");
+//	std::string rootDir(cwd);
+//	std::string engine_name = rootDir+"/res/yolov5s-seg-27.engine";
+//
+//	std::ifstream engine_file(engine_name, std::ios::binary);
+//
+//	if(!engine_file)
+//	{
+//		std::cerr<<"Engine File doesn't exist: \n"<<"Path: "<<engine_name<<std::endl;
+//		return;
+//	}
+//
+//	deserialize_engine(engine_name, &runtime, &engine, &context);
+//
+//	assert(engine->getNbBindings() == 3);
+//	// In order to bind the buffers, we need to know the names of the input and output tensors.
+//	// Note that indices are guaranteed to be less than IEngine::getNbBindings()
+//	const int inputIndex = engine->getBindingIndex(kInputTensorName);
+//	const int outputIndex1 = engine->getBindingIndex(kOutputTensorName);
+//	const int outputIndex2 = engine->getBindingIndex("proto"); // mask
+//	assert(inputIndex == 0);
+//	assert(outputIndex1 == 1);
+//	assert(outputIndex2 == 2);
 
-	std::ifstream engine_file(engine_name, std::ios::binary);
-
-	if(!engine_file)
-	{
-		std::cerr<<"Engine File doesn't exist: \n"<<"Path: "<<engine_name<<std::endl;
-		return;
-	}
-
-	deserialize_engine(engine_name, &runtime, &engine, &context);
-
-	assert(engine->getNbBindings() == 3);
-	// In order to bind the buffers, we need to know the names of the input and output tensors.
-	// Note that indices are guaranteed to be less than IEngine::getNbBindings()
-	const int inputIndex = engine->getBindingIndex(kInputTensorName);
-	const int outputIndex1 = engine->getBindingIndex(kOutputTensorName);
-	const int outputIndex2 = engine->getBindingIndex("proto"); // mask
-	assert(inputIndex == 0);
-	assert(outputIndex1 == 1);
-	assert(outputIndex2 == 2);
+	initYolo();
 
 	this->started = true;
 }
@@ -103,14 +105,8 @@ void YoloMask::prepareImages()
 	mat.download(this->frame);
 	this->frame.create(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3);
 	this->__cutToPanels();
-//
-//	int counter = 0;
-//	for(auto& img : this->img_batch)
-//	{
-//		cv::imshow("image"+counter, img);
-//		counter++;
-//	}
-//	cv::waitKey(0);
+
+
 }
 
 void YoloMask::preprocess()
@@ -166,12 +162,6 @@ void YoloMask::runInference()
 	cudaDeviceSynchronize();
 	this->cudaStatus = cudaGetLastError();
 	this->checkCudaError("synchronize device", "cpu memory");
-
-	for(int i=0; i< kBatchSize * kOutputSize1-1; i++)
-	{
-		std::cout<<this->detectionsOutCpu[i]<<std::endl;
-	}
-
 }
 
 void YoloMask::postprocess()
@@ -224,32 +214,38 @@ void YoloMask::getBatch()
 }
 
 
-void yoloRun(std::vector<cv::Mat> img_batch) {
-  cudaSetDevice(kGpuId);
-
-
-  char *cwd = getenv("CWD");
-  std::string rootDir(cwd);
-  std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
-
+char *cwd = getenv("CWD");
+std::string rootDir(cwd);
+std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
   // Deserialize the engine from file
-  IRuntime* runtime = nullptr;
-  ICudaEngine* engine = nullptr;
-  IExecutionContext* context = nullptr;
-  deserialize_engine(engine_name, &runtime, &engine, &context);
-  cudaStream_t stream;
-  CUDA_CHECK(cudaStreamCreate(&stream));
 
-  // Init CUDA preprocessing
-  cuda_preprocess_init(kMaxInputImageSize);
+IRuntime* runtime = nullptr;
+ICudaEngine* engine = nullptr;
+IExecutionContext* context = nullptr;
+cudaStream_t stream;
+// Prepare cpu and gpu buffers
+float* gpu_buffers[3];
+float* cpu_output_buffer1 = nullptr;
+float* cpu_output_buffer2 = nullptr;
 
-  // Prepare cpu and gpu buffers
-  float* gpu_buffers[3];
-  float* cpu_output_buffer1 = nullptr;
-  float* cpu_output_buffer2 = nullptr;
-  prepare_buffers(engine, &gpu_buffers[0], &gpu_buffers[1], &gpu_buffers[2], &cpu_output_buffer1, &cpu_output_buffer2);
 
-    // Preprocess
+void initYolo()
+{
+	cudaSetDevice(kGpuId);
+	CUDA_CHECK(cudaStreamCreate(&stream));
+	deserialize_engine(engine_name, &runtime, &engine, &context);
+	 // Init CUDA preprocessing
+	cuda_preprocess_init(kMaxInputImageSize);
+	prepare_buffers(engine, &gpu_buffers[0], &gpu_buffers[1], &gpu_buffers[2], &cpu_output_buffer1, &cpu_output_buffer2);
+}
+
+
+void yoloRun(std::vector<cv::Mat> img_batch) {
+
+
+  int counter = 0;
+
+  // Preprocess
   cuda_batch_preprocess(img_batch, gpu_buffers[0], kInputW, kInputH, stream);
 
     // Run inference
@@ -263,28 +259,32 @@ void yoloRun(std::vector<cv::Mat> img_batch) {
    std::vector<std::vector<Detection>> res_batch;
    batch_nms(res_batch, cpu_output_buffer1, img_batch.size(), kOutputSize1, kConfThresh, kNmsThresh);
 
+
 	// Draw result and save image
    for (size_t b = 0; b < img_batch.size(); b++) {
-	  auto& res = res_batch[b];
+	  auto& res = res_batch[0];
 	  cv::Mat img = img_batch[b];
 
 	  auto masks = process_mask(&cpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
+//
 	  draw_mask_bbox(img, res, masks);
+//	  break;
 //	  cv::imwrite("_" + img_name_batch[b], img);
 	}
 
+
   // Release stream and buffers
-  cudaStreamDestroy(stream);
-  CUDA_CHECK(cudaFree(gpu_buffers[0]));
-  CUDA_CHECK(cudaFree(gpu_buffers[1]));
-  CUDA_CHECK(cudaFree(gpu_buffers[2]));
-  delete[] cpu_output_buffer1;
-  delete[] cpu_output_buffer2;
-  cuda_preprocess_destroy();
-  // Destroy the engine
-  context->destroy();
-  engine->destroy();
-  runtime->destroy();
+//  cudaStreamDestroy(stream);
+//  CUDA_CHECK(cudaFree(gpu_buffers[0]));
+//  CUDA_CHECK(cudaFree(gpu_buffers[1]));
+//  CUDA_CHECK(cudaFree(gpu_buffers[2]));
+//  delete[] cpu_output_buffer1;
+//  delete[] cpu_output_buffer2;
+//  cuda_preprocess_destroy();
+//  // Destroy the engine
+//  context->destroy();
+//  engine->destroy();
+//  runtime->destroy();
 
 }
 

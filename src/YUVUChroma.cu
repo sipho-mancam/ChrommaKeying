@@ -2216,7 +2216,7 @@ void DrawSnapShotDetectionsPTR(Mat *DrawingMat,bool bTrackReset)
 					if(linkedptr->iClasified==-1)
 					{
 						Mat myclassify=Mat(*DrawingMat,r);
-						linkedptr->iClasified=Classify(myclassify.clone());
+//						linkedptr->iClasified=Classify(myclassify.clone());
 
 						//ClassifyDetection(linked);
 
