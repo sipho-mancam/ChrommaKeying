@@ -105,8 +105,10 @@ static cv::Rect get_downscale_rect(float bbox[4], float scale) {
 
 std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vector<Detection>& dets) {
   std::vector<cv::Mat> masks;
+
   for (size_t i = 0; i < dets.size(); i++) {
-    cv::Mat mask_mat = cv::Mat::zeros(kInputH / 4, kInputW / 4, CV_32FC1);
+    cv::Mat mask_mat(kInputH / 4, kInputW / 4, CV_32FC1);
+    mask_mat = cv::Scalar(0,0,0);
     auto r = get_downscale_rect(dets[i].bbox, 4);
     for (int x = r.x; x < r.x + r.width; x++) {
       for (int y = r.y; y < r.y + r.height; y++) {
@@ -118,8 +120,10 @@ std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vecto
         mask_mat.at<float>(y, x) = e;
       }
     }
-    cv::resize(mask_mat, mask_mat, cv::Size(kInputW, kInputH));
-    masks.push_back(mask_mat);
+   // cv::Mat mask_mat2;
+    cv::Mat mask_mat2(kInputH , kInputW , CV_32FC1);
+    cv::resize(mask_mat, mask_mat2, cv::Size(kInputW, kInputH));
+    masks.push_back(mask_mat2);
   }
   return masks;
 }
@@ -146,44 +150,19 @@ cv::Mat scale_mask(cv::Mat mask, cv::Mat img) {
 }
 
 void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets, std::vector<cv::Mat>& masks) {
-  static std::vector<uint32_t> colors = {0xFF3838, 0xFF9D97, 0xFF701F, 0xFFB21D, 0xCFD231, 0x48F90A,
-                                         0x92CC17, 0x3DDB86, 0x1A9334, 0x00D4BB, 0x2C99A8, 0x00C2FF,
-                                         0x344593, 0x6473FF, 0x0018EC, 0x8438FF, 0x520085, 0xCB38FF,
-                                         0xFF95C8, 0xFF37C7};
+   img = cv::Scalar(255,255,255); // set all the values in the image to be white
   for (size_t i = 0; i < dets.size(); i++) {
     cv::Mat img_mask = scale_mask(masks[i], img);
-    auto color = colors[(int)dets[i].class_id % colors.size()];
-    auto bgr = cv::Scalar(color & 0xFF, color >> 8 & 0xFF, color >> 16 & 0xFF);
-
     cv::Rect r = get_rect(img, dets[i].bbox);
     for (int x = r.x; x < r.x + r.width; x++) {
       for (int y = r.y; y < r.y + r.height; y++) {
         float val = img_mask.at<float>(y, x);
         if (val <= 0.5) continue;
-        img.at<cv::Vec3b>(y, x)[0] = img.at<cv::Vec3b>(y, x)[0] / 2 + bgr[0] / 2;
-        img.at<cv::Vec3b>(y, x)[1] = img.at<cv::Vec3b>(y, x)[1] / 2 + bgr[1] / 2;
-        img.at<cv::Vec3b>(y, x)[2] = img.at<cv::Vec3b>(y, x)[2] / 2 + bgr[2] / 2;
+        img.at<cv::Vec3b>(y, x)[0] = 0;//img.at<cv::Vec3b>(y, x)[0]/2 + 0;
+        img.at<cv::Vec3b>(y, x)[1] = 0;//img.at<cv::Vec3b>(y, x)[1]/2 + 125;
+        img.at<cv::Vec3b>(y, x)[2] = 0;//img.at<cv::Vec3b>(y, x)[2]/2 + 0;
       }
     }
-
-//    cv::rectangle(img, r, bgr, 2);
-//
-//    // Get the size of the text
-//    cv::Size textSize = cv::getTextSize(labels_map[(int)dets[i].class_id] + " " + to_string_with_precision(dets[i].conf), cv::FONT_HERSHEY_PLAIN, 1.2, 2, NULL);
-//    // Set the top left corner of the rectangle
-//    cv::Point topLeft(r.x, r.y - textSize.height);
-//
-//    // Set the bottom right corner of the rectangle
-//    cv::Point bottomRight(r.x + textSize.width, r.y + textSize.height);
-//
-//    // Set the thickness of the rectangle lines
-//    int lineThickness = 2;
-//
-//    // Draw the rectangle on the image
-//    cv::rectangle(img, topLeft, bottomRight, bgr, -1);
-//
-//    cv::putText(img, labels_map[(int)dets[i].class_id] + " " + to_string_with_precision(dets[i].conf), cv::Point(r.x, r.y + 4), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar::all(0xFF), 2);
-
   }
 }
 

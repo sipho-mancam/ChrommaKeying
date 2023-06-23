@@ -1694,10 +1694,10 @@ void Launch_yuyv_Unpacked_UnpackedComBineData(int *iBlendPos0, int *iBlendPos1, 
 			yuyvUnPackedToRGB << <gridRGB, blockRGB >> > ((uint4 *)YUV_Unpacked_Key, DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
 			break;
 		case 3:
-			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
+//			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
 			break;
 		case 4:
-			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
+//			MaskToRGB << <gridRGB, blockRGB >> > (ChromaGeneratedMask[0], ChromaGeneratedMask[1], ChromaGeneratedMask[2],GetSegmentedMaskSnapshot(), DownloadRGBData, dstAlignedWidthUnpackedData, dstAlignedWidthRGB, 1080);
 			break;
 
 		}
@@ -3996,24 +3996,24 @@ __global__ void yuyvPackedToyUnpacked(uint4* src_Video, uchar *dst_video_all,int
 }
 
 
-void PrepareYoloData(bool bTakeMask,float fnms)
-{
-
-	const int dstAlignedWidthUnpackedData = (1920 / 2);
-	dim3 blockRGB(16, 16);
-	dim3 gridRGB_Split(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080 / 2, blockRGB.y));
-	//dim3 gridRGB(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080, blockRGB.y));
-
-	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>> ((uint4*)YUV_Unpacked_Video, (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[0], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[1], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[2], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[3], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
-	//CUDA_CHECK_RETURN(cudaDeviceSynchronize());
-
-	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>>((uint4*) (YUV_Unpacked_Video+dstAlignedWidthUnpackedData),(uint8_t *) m_RGBScaledFramePlanarDetectorptrs[4], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[5], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[6], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[7], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
-	CUDA_CHECK_RETURN(cudaDeviceSynchronize());
-	Yolov5Detection=doInference_YoloV5(m_RGBScaledFramePlanarDetector,fnms,bTakeMask);
-	if(bTakeMask)
-		SnapYolov5Detection=Yolov5Detection;
-
-}
+//void PrepareYoloData(bool bTakeMask,float fnms)
+//{
+//
+//	const int dstAlignedWidthUnpackedData = (1920 / 2);
+//	dim3 blockRGB(16, 16);
+//	dim3 gridRGB_Split(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080 / 2, blockRGB.y));
+//	//dim3 gridRGB(iDivUp(dstAlignedWidthUnpackedData, blockRGB.x),iDivUp(1080, blockRGB.y));
+//
+//	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>> ((uint4*)YUV_Unpacked_Video, (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[0], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[1], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[2], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[3], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
+//	//CUDA_CHECK_RETURN(cudaDeviceSynchronize());
+//
+//	yuyvUnPackedToPlanarRGB_Split<<<gridRGB_Split, blockRGB>>>((uint4*) (YUV_Unpacked_Video+dstAlignedWidthUnpackedData),(uint8_t *) m_RGBScaledFramePlanarDetectorptrs[4], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[5], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[6], (uint8_t *)m_RGBScaledFramePlanarDetectorptrs[7], 640 * sizeof(float), dstAlignedWidthUnpackedData*2, 1080/2, 640);
+//	CUDA_CHECK_RETURN(cudaDeviceSynchronize());
+//	Yolov5Detection=doInference_YoloV5(m_RGBScaledFramePlanarDetector,fnms,bTakeMask);
+//	if(bTakeMask)
+//		SnapYolov5Detection=Yolov5Detection;
+//
+//}
 
 
 

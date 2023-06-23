@@ -8,20 +8,30 @@
 #include "yolo.hpp"
 #include <fstream>
 
+#include "config.h"
+#include "cuda_utils.h"
+#include "logging.h"
+#include "utils.h"
+#include "preprocess.h"
+#include "postprocess.h"
+#include "model.h"
+
 using namespace nvinfer1;
 
 static Logger gLogger;
 
-
-void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, int batchSize) {
-
-}
 
 
 
 
 YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members should be properly initialized")
 {
+	char *cwd = getenv("CWD");
+	std::string rootDir(cwd);
+	std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
+
+	api = new YoloAPI(obj, std::string("/home/jurie/Documents/Computer Vision/tensorrtx/yolov5/build/yolov5x.engine"));
+
 	this->outputBufferDetections = nullptr;
 	this->outputBufferMask = nullptr;
 	this->batchData = nullptr;
@@ -33,13 +43,10 @@ YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members shoul
 	this->checkCudaError("create cuda stream", "Yolo Mask Constructor");
 	this->started = false;
 	this->loaded = false;
-
 	this->maskOutCpu = new float[kBatchSize * kOutputSize2];
 	this->detectionsOutCpu = new float[kBatchSize * kOutputSize1];
-
 	memset(this->detectionsOutCpu, 0, kBatchSize * kOutputSize1*sizeof(float));
 	memset(this->maskOutCpu, 0 , kBatchSize * kOutputSize2*sizeof(float));
-
 	this->initialize();
 }
 
@@ -47,10 +54,9 @@ void YoloMask::initialize()
 {
 //	this->started = false;
 //	cudaSetDevice(kGpuId);
-//	char *cwd = getenv("CWD");
-//	std::string rootDir(cwd);
-//	std::string engine_name = rootDir+"/res/yolov5s-seg-27.engine";
+
 //
+
 //	std::ifstream engine_file(engine_name, std::ios::binary);
 //
 //	if(!engine_file)
@@ -71,7 +77,7 @@ void YoloMask::initialize()
 //	assert(outputIndex1 == 1);
 //	assert(outputIndex2 == 2);
 
-	initYolo();
+//	initYolo();
 
 	this->started = true;
 }
@@ -87,7 +93,9 @@ void YoloMask::__cutToPanels()
 	for(int i=0; i<(n+1); i++)
 	{
 		cv::Rect roi(cv::Point(lastEnd, 0), cv::Size(width, this->frame.rows));
-		this->img_batch.push_back(this->frame(roi));
+		cv::Mat tImg = this->frame(roi);
+		cv::resize(tImg, tImg, cv::Size(640, 640));
+		this->img_batch.push_back(tImg);
 		lastEnd += width-overlappingFactor;
 	}
 
@@ -167,14 +175,14 @@ void YoloMask::runInference()
 void YoloMask::postprocess()
 {
 	// NMS
-	std::vector<std::vector<Detection>> res_batch;
-	batch_nms(res_batch, this->detectionsOutCpu, kBatchSize, kOutputSize1, kConfThresh, kNmsThresh);
-
-	for (size_t b = 0; b < kBatchSize; b++)
-	{
-//		auto& res = res_batch[b];
-//		auto masks = process_mask_s(&this->maskOutCpu[b * kOutputSize2], kOutputSize2, res);
-	}
+//	std::vector<std::vector<Detection>> res_batch;
+//	batch_nms(res_batch, this->detectionsOutCpu, kBatchSize, kOutputSize1, kConfThresh, kNmsThresh);
+//
+//	for (size_t b = 0; b < kBatchSize; b++)
+//	{
+////		auto& res = res_batch[b];
+////		auto masks = process_mask_s(&this->maskOutCpu[b * kOutputSize2], kOutputSize2, res);
+//	}
 
 
 }
@@ -209,8 +217,9 @@ void YoloMask::load(float* bD, float* oD, float* oM)
 
 void YoloMask::getBatch()
 {
+	cudaSetDevice(kGpuId);
 	this->prepareImages();
-	yoloRun(this->img_batch);
+	api->run(this->img_batch);
 }
 
 

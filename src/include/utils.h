@@ -32,7 +32,7 @@ static inline int read_files_in_dir(const char* p_dir_name, std::vector<std::str
     mylist.sort();
     for(std::string elem : mylist)
     {
-    	std::cout<<elem<<std::endl;
+//    	std::cout<<elem<<std::endl;
     	file_names.push_back(elem);
     }
 

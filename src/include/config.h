@@ -1,5 +1,5 @@
 #pragma once
-#include <unordered_map>
+
 /* --------------------------------------------------------
  * These configs are related to tensorrt model, if these are changed,
  * please re-compile and re-serialize the tensorrt model.
@@ -23,7 +23,7 @@ constexpr static int kClsNumClass = 1000;
 constexpr static int kBatchSize = 4;
 
 // Yolo's input width and height must by divisible by 32
-constexpr static int kInputH = 540;
+constexpr static int kInputH = 640;
 constexpr static int kInputW = 640;
 
 // Classfication model's input shape
@@ -37,7 +37,7 @@ constexpr static int kMaxNumOutputBbox = 1000;
 constexpr static int kNumAnchor = 3;
 
 // The bboxes whose confidence is lower than kIgnoreThresh will be ignored in yololayer plugin.
-constexpr static float kIgnoreThresh = 0.4f;
+constexpr static float kIgnoreThresh = 0.1f;
 
 /* --------------------------------------------------------
  * These configs are NOT related to tensorrt model, if these are changed,
@@ -45,7 +45,7 @@ constexpr static float kIgnoreThresh = 0.4f;
  * --------------------------------------------------------*/
 
 // NMS overlapping thresh and final detection confidence thresh
-const static float kNmsThresh = 0.4f;
+const static float kNmsThresh = 0.45f;
 const static float kConfThresh = 0.5f;
 
 const static int kGpuId = 0;

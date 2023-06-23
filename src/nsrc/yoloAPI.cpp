@@ -7,6 +7,7 @@
 #include "preprocess.h"
 #include "postprocess.h"
 #include "model.h"
+#include <interfaces.hpp>
 
 #include <iostream>
 #include <chrono>
@@ -87,7 +88,7 @@ void serialize_engine(unsigned int max_batchsize, float& gd, float& gw, std::str
   // Create model to populate the network, then set the outputs and create an engine
   ICudaEngine *engine = nullptr;
 
-  engine = build_seg_engine(max_batchsize, builder, config, DataType::kFLOAT, gd, gw, wts_name);
+  engine = build_seg_engine(max_batchsize, builder, config, nvinfer1::DataType::kFLOAT, gd, gw, wts_name);
 
   assert(engine != nullptr);
 
@@ -135,13 +136,11 @@ void deserialize_engine(std::string& engine_name, IRuntime** runtime, ICudaEngin
 }
 
 
-YoloAPI::YoloAPI(std::string engineN, std::string wtsN, std::string labels, std::string imgD)
+YoloAPI::YoloAPI(IPipeline *obj, std::string engineN) : IPipeline(obj)
 {
     this->engine_name = engineN;
-    this->wts_name = wtsN;
-    this->img_dir = imgD;  
-    this->labels_filename = labels;
     this->init(); 
+    this->merged_mask.create(cv::Size(1920, 640), CV_8UC3);
 }
 
 
@@ -151,8 +150,6 @@ void YoloAPI::init()
     CUDA_CHECK(cudaStreamCreate(&stream));
     cuda_preprocess_init(kMaxInputImageSize);
     prepare_buffers(this->engine, &this->gpu_buffers[0], &this->gpu_buffers[1], &this->gpu_buffers[2], &this->cpu_output_buffer1, &this->cpu_output_buffer2);
-    this->read_files();
-
 }
 
 void YoloAPI::deserialize()
@@ -164,23 +161,6 @@ void YoloAPI::deserialize()
     }
 }
 
-void YoloAPI::read_files()
-{
-    if (read_files_in_dir(this->img_dir.c_str(), this->file_names) < 0) {
-        std::cerr << "read_files_in_dir failed." << std::endl;
-        throw("read_files_in_dir failed.");
-    }
-
-    // Read the txt file for classnames
-    std::ifstream labels_file(this->labels_filename, std::ios::binary);
-    if (!labels_file.good()) {
-        std::cerr << "read " << this->labels_filename << " error!" << std::endl;
-        throw("read_files_in_dir failed.");
-    }
-    read_labels(this->labels_filename, this->labels_map);
-    assert(kNumClass == this->labels_map.size());
-
-}
 
 void YoloAPI::preprocessor(std::vector<cv::Mat>& img_batch)
 {
@@ -196,10 +176,28 @@ void YoloAPI::rInfer()
     std::cout << "inference time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 }
 
-
-void YoloAPI::postProcess(std::vector<cv::Mat> &img_batch, std::vector<std::string> &img_name_batch)
+void YoloAPI::mergeBatch()
 {
+    // input is fixed to width*2 and height/2 (Interlacing problem)
+	int n = 3;
+	int width = this->masks[0].cols;
+	int overlappingFactor = width/n+ width%n;
+	int lastEnd = 0;
+
+	for(int i=0; i<(n+1); i++)
+	{
+		cv::Rect roi(cv::Point(lastEnd, 0), cv::Size(this->masks[i].cols, this->masks[i].rows));
+		this->masks[i].copyTo(this->merged_mask(roi));
+		lastEnd += width-overlappingFactor;
+	}
+}
+
+void YoloAPI::postProcess(std::vector<cv::Mat> &img_batch)
+{
+    this->masks.clear();
      // NMS
+    char buff[256] = {0, };
+    static int counter = 0;
     std::vector<std::vector<Detection>> res_batch;
     batch_nms(res_batch, cpu_output_buffer1, img_batch.size(), kOutputSize1, kConfThresh, kNmsThresh);
 
@@ -207,22 +205,28 @@ void YoloAPI::postProcess(std::vector<cv::Mat> &img_batch, std::vector<std::stri
     for (size_t b = 0; b < img_batch.size(); b++) {
         auto& res = res_batch[b];
         cv::Mat img = img_batch[b];
-
         auto masks = process_mask(&cpu_output_buffer2[b * kOutputSize2], kOutputSize2, res);
         draw_mask_bbox(img, res, masks);
-        cv::imwrite("_" + img_name_batch[b], img);
+        this->masks.push_back(img);
+//
     }
+    this->mergeBatch();
+//
+//    cv::imshow("Yolo Mask", this->merged_mask);
+//    sprintf(buff, "/home/jurie/Pictures/_batch_no_%d.bmp", counter);
+//    cv::imwrite(std::string(buff), this->merged_mask);
+//    counter++;
 }
 
 
-void YoloAPI::run(std::vector<cv::Mat>&img_batch, std::vector<std::string>& img_name_batch)
+void YoloAPI::run(std::vector<cv::Mat>&img_batch)
 {
     this->preprocessor(img_batch);
     // Run inference
     this->rInfer();
    
-    this->postProcess(img_batch, img_name_batch);
- 
+    this->postProcess(img_batch);
+
 }
 
 

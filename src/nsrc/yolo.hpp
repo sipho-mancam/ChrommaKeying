@@ -40,6 +40,8 @@ void deserialize_engine(std::string& engine_name, IRuntime** runtime, ICudaEngin
 void yoloRun(std::vector<cv::Mat> res);
 void initYolo();
 
+//class YoloAPI;
+
 
 
 #endif /* SRC_NSRC_YOLO_HPP_ */

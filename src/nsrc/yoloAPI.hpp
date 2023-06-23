@@ -68,39 +68,7 @@ void infer(IExecutionContext& context, cudaStream_t& stream, void **buffers, flo
 // };
 
 
-class YoloAPI //: public IPipeline
-{
-private:
-    uchar3 *mask;
-    std::string engine_name;
-    std::string labels_filename;
-    std::string wts_name;
-    std::string img_dir;
-    std::unordered_map<int, std::string> labels_map;
-    std::vector<std::string> file_names;
 
-    IRuntime* runtime = nullptr;
-    ICudaEngine* engine = nullptr;
-    IExecutionContext* context = nullptr;
-    cudaStream_t stream;
-
-     // Prepare cpu and gpu buffers
-    float* gpu_buffers[3];
-    float* cpu_output_buffer1 = nullptr;
-    float* cpu_output_buffer2 = nullptr;
-
-    void init();
-    void deserialize();
-    void read_files();
-    void preprocessor(std::vector<cv::Mat>& img_batch);
-    void rInfer();
-    void postProcess(std::vector<cv::Mat> &img_batch, std::vector<std::string> &img_name_batch);
-
-public:
-    YoloAPI(std::string engineF, std::string wts, std::string labels,  std::string imgD);
-    void run(std::vector<cv::Mat>&img_batch, std::vector<std::string>& img_name_batch);
-   ~YoloAPI();
-};
 
 
 #endif /* SRC_NSRC_YOLO_HPP_ */

@@ -72,6 +72,11 @@ __global__ void warpaffine_kernel(
     c2 = w1 * v1[2] + w2 * v2[2] + w3 * v3[2] + w4 * v4[2];
   }
 
+  // bgr to rgb
+  float t = c2;
+  c2 = c0;
+  c0 = t;
+
   // normalization
   c0 = c0 / 255.0f;
   c1 = c1 / 255.0f;
@@ -85,7 +90,6 @@ __global__ void warpaffine_kernel(
   *pdst_c0 = c0;
   *pdst_c1 = c1;
   *pdst_c2 = c2;
-
 }
 
 void cuda_preprocess(
@@ -107,7 +111,7 @@ void cuda_preprocess(
   s2d.value[2] = -scale * src_width  * 0.5  + dst_width * 0.5;
   s2d.value[3] = 0;
   s2d.value[4] = scale;
-  s2d.value[5] = 0;
+  s2d.value[5] = -scale * src_height * 0.5 + dst_height * 0.5;
 
   cv::Mat m2x3_s2d(2, 3, CV_32F, s2d.value);
   cv::Mat m2x3_d2s(2, 3, CV_32F, d2s.value);

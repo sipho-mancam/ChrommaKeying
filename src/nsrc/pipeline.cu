@@ -298,7 +298,8 @@ void Preprocessor::create()
 	cv::cuda::GpuMat output;//(this->iHeight, this->iWidth, CV_32SC4);
 
 	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(13,13), -1);
-	gaus->apply(input, input);
+	gaus->apply(input, output);
+
 
 //	std::vector<cv::cuda::GpuMat> res;
 //	cv::cuda::split(input, res);
@@ -579,6 +580,7 @@ void Pipeline::run()
 			preproc->create();
 //			preproc->convertToRGB();
 
+			yoloMask->getBatch();
 
 //			prev.load(preproc->getRGB());
 //			prev.preview(main->getHandle());
@@ -616,7 +618,7 @@ void Pipeline::run()
 
 			if(chrommaMask->isMask())
 			{
-				yoloMask->getBatch();
+
 				chrommaMask->output();
 				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);

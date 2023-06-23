@@ -23,6 +23,7 @@
 
 
 #define CUDA_LOOKUP_SIZE 1073741824
+using namespace nvinfer1;
 
 
 class IPipeline
@@ -234,6 +235,41 @@ public:
 	void toRGB();
 };
 
+
+
+class YoloAPI : public IPipeline
+{
+private:
+    // uchar3 *mask;
+    std::vector<cv::Mat> masks;
+    std::string engine_name;
+
+    cv::Mat merged_mask;
+
+    IRuntime* runtime = nullptr;
+    ICudaEngine* engine = nullptr;
+    IExecutionContext* context = nullptr;
+    cudaStream_t stream;
+
+    // Prepare cpu and gpu buffers
+    float* gpu_buffers[3];
+    float* cpu_output_buffer1 = nullptr;
+    float* cpu_output_buffer2 = nullptr;
+
+    void init();
+    void deserialize();
+    void preprocessor(std::vector<cv::Mat>& img_batch);
+    void rInfer();
+    void postProcess(std::vector<cv::Mat> &img_batch);
+    void mergeBatch(); // this will merge the masks into a single mask
+public:
+    YoloAPI(IPipeline *obj, std::string engineF);
+    void run(std::vector<cv::Mat>&img_batch);
+   ~YoloAPI();
+};
+
+
+
 class YoloMask: public IMask
 {
 private:
@@ -241,6 +277,8 @@ private:
 	float *outputBufferMask, *outputBufferDetections;
 	float *maskOutCpu, *detectionsOutCpu;
 	float **gpuBuffs;
+
+	YoloAPI *api;
 
 	std::vector<cv::Mat> img_batch;
 	cv::Mat frame;
