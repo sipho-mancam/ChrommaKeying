@@ -39,7 +39,7 @@ int main()
 	uchar *chrommaLookupBuffer, *chrommaMask;
 	uchar2 *pVideo, *pKey, *pFill;
 	uchar3* rgbVideo, *vSnapshot, *maskRGB;
-	uint4 *video, *key, *fill, *aVideo, *snapShotV;
+	uint4 *video, *key, *fill, *aVideo, *snapShotV, *packedV;
 
 	float* inputData, *detectionsOutput, *maskOutput, *gpuBuffers[3];
 
@@ -57,12 +57,14 @@ int main()
 	allocateMemory((void**)&pVideo,in->getPFrameSize());
 	allocateMemory((void**)&pKey, in->getPFrameSize());
 	allocateMemory((void**)&pFill, in->getPFrameSize());
+	allocateMemory((void**)&packedV, in->getPFrameSize());
 
 	allocateMemory((void**)&video, in->getFrameSize());
 	allocateMemory((void**)&key, in->getFrameSize());
 	allocateMemory((void**)&fill, in->getFrameSize());
 	allocateMemory((void**)&aVideo, in->getFrameSize());
 	allocateMemory((void**)&snapShotV, in->getFrameSize());
+
 
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
@@ -84,7 +86,7 @@ int main()
 	in->load(pVideo, pKey, pFill);
 
 	while(!in->isOutput())
-		in->run();
+		in->run(1);
 
 	Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
 	pp->load(video, key, fill, aVideo, rgbVideo);
@@ -106,6 +108,8 @@ int main()
 	yolo->load(gpuBuffers);
 
 	Keyer *keyer = new Keyer(pp, cm->getMask());
+
+	keyer->setOutput(packedV);
 
 
 	/******************************

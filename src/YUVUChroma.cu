@@ -1563,7 +1563,7 @@ __global__ void yuyv_Unpacked_GenerateMask(uint4* src_Video_Unapc, uchar *maskDo
 	uint4 *macroPxVideo;
 	uint4 macroPxVideoReal;
 
-	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
+//	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
 
 	macroPxVideo = &src_Video_Unapc[y * srcAlignedWidth + x];
 	macroPxVideoReal = *macroPxVideo;
@@ -3467,6 +3467,9 @@ __global__ void keyAndFill(uint4* src_Video_Unapc,uint4* src__Fill_Unapc,uint4* 
 	macroPxFill = &src__Fill_Unapc[y * srcAlignedWidth + x];
 	macroPxKey = &src__Key_Unapc[y * srcAlignedWidth + x];
 
+//	printf("%d %d %d %d\n", macroPxKey->w, macroPxKey->x, macroPxKey->y, macroPxKey->z);
+
+	if(macroPxKey->w <= 64) return;
 
 	if (y > 0)
 	{

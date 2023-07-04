@@ -30,7 +30,7 @@ YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members shoul
 	std::string rootDir(cwd);
 	std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
 
-	api = new YoloAPI(obj, std::string("/home/jurie/Documents/Computer Vision/tensorrtx/yolov5/build/yolov5x.engine"));
+	api = new YoloAPI(obj, std::string("/home/jurie/Documents/Computer Vision/tensorrtx/yolov5/build/yolov5x-latest.engine"));
 
 	this->outputBufferDetections = nullptr;
 	this->outputBufferMask = nullptr;
@@ -106,10 +106,12 @@ void YoloMask::prepareImages()
 	// convert to RGB,
 	// cut to 4 panels
 	// send it to yolo
-
+	static int tracker = 0;
+	std::cout<<tracker<<std::endl;
 	this->img_batch.clear();
 	this->convertToRGB();
-	cv::cuda::GpuMat mat(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3, this->rgbVideo);
+	cv::cuda::GpuMat mat(cv::Size(this->iWidth, this->iHeight), CV_8UC3, this->rgbVideo);
+
 	mat.download(this->frame);
 	this->frame.create(cv::Size(this->iWidth*2, this->iHeight/2), CV_8UC3);
 	this->__cutToPanels();

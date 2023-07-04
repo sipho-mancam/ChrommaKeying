@@ -141,11 +141,12 @@ public:
 	Input(VideoIn* i);
 	void init() override; // initialize cuda variables
 	bool isOutput(){return in;}
-	void run(); // receive video and copy it to gpu
+	void run(int delay); // receive video and copy it to gpu
 	void load(uchar2* pv, uchar2* pk, uchar2* pf);
 	uchar2* getPVideo(){return this->pVideo;}
 	uchar2* getPKey(){return this->pKey;}
 	uchar2* getPFill(){return this->pFill;}
+	void sendOut(uint4* output);
 };
 
 
@@ -338,9 +339,14 @@ class Keyer: public IPipeline
 private:
 	uchar* finalMask;
 	double4 parabolic;
+	uint4* packed;
 public:
 	Keyer(IPipeline* obj, uchar* finalMask);
 	void create(int blend); // combines the key, fill and video to video
+	void pack();
+	void setOutput(uint4* p){this->packed = p;}
+	uint4* getOutput(){return this->packed;}
+
 };
 
 

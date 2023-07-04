@@ -212,7 +212,7 @@ void YoloAPI::postProcess(std::vector<cv::Mat> &img_batch)
     }
     this->mergeBatch();
 //
-//    cv::imshow("Yolo Mask", this->merged_mask);
+    cv::imshow("Yolo Mask", this->merged_mask);
 //    sprintf(buff, "/home/jurie/Pictures/_batch_no_%d.bmp", counter);
 //    cv::imwrite(std::string(buff), this->merged_mask);
 //    counter++;

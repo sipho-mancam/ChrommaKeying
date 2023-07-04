@@ -18,10 +18,27 @@
 #include "interfaces.hpp"
 #include <ui.hpp>
 #include "yolo.hpp"
+#include "color_balance.hpp"
+#include "contours.hpp"
+#include "cuda_runtime_api.h"
 
 /**** Utils *****/
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
 
+__global__ void gammaCorrect(uint4* unpackedVideo, int srcAlignedWidth, int height, double gamma)
+{
+	const int x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= srcAlignedWidth || y >= height)
+			return;
+
+	uint4* pixelValue = &unpackedVideo[y*srcAlignedWidth+x];
+
+	pixelValue->w = pow(((double)pixelValue->w*1.0/1024), gamma) * 1024;
+	pixelValue->y = pow(((double)pixelValue->y*1.0/1024), gamma) * 1024;
+
+}
 
 IPipeline::IPipeline()
 {
@@ -157,14 +174,14 @@ void Input::load(uchar2* pv, uchar2* pk, uchar2* pf)
 }
 
 
-void Input::run()
+void Input::run(int delay)
 {
 	const dim3 block(16, 16);
 	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
 	const int srcAlignedWidth = this->rowLength/16;
 	const int dstAlignedWidth = this->iWidth/2;
 
-	input->WaitForFrames(1);
+	input->WaitForFrames(delay);
 	static void* videoFrame;
 	this->in = false;
 	if(videoFrame)
@@ -206,6 +223,17 @@ void Input::run()
 	if(keyFrame)
 		free(keyFrame);
 	this->in = true;
+}
+
+void Input::sendOut(uint4* output)
+{
+	assert(output!=nullptr);
+	uint4* data = new uint4[this->frameSizePacked];
+
+	this->cudaStatus = cudaMemcpy(data, output, this->frameSizePacked, cudaMemcpyDeviceToHost);
+	assert(this->cudaStatus==cudaSuccess);
+	this->input->ImagelistOutput.AddFrame((void*)data);
+
 }
 
 
@@ -294,12 +322,23 @@ void Preprocessor::unpack()
 
 void Preprocessor::create()
 {
-	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_32SC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
-	cv::cuda::GpuMat output;//(this->iHeight, this->iWidth, CV_32SC4);
+//	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_32SC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
+//	cv::cuda::GpuMat output;//(this->iHeight, this->iWidth, CV_32SC4);
+//
+//	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(13,13), -1);
+//	gaus->apply(input, output);
+	const int srcAlignedWidth = this->iWidth/2;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+	gammaCorrect<<<grid, block>>>(
+			this->augVideo,
+			srcAlignedWidth,
+			this->iHeight,
+			0.45
+	);
 
-	Ptr<Filter> gaus = cv::cuda::createGaussianFilter(input.type(), input.type(), cv::Size(13,13), -1);
-	gaus->apply(input, output);
-
+	this->cudaStatus = cudaDeviceSynchronize();
+	assert(this->cudaStatus==cudaSuccess);
 
 //	std::vector<cv::cuda::GpuMat> res;
 //	cv::cuda::split(input, res);
@@ -346,7 +385,8 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						x, y,
 						(this->iWidth / 2),
 						ws[WINDOW_TRACKBAR_OUTER_DIAM]*2,
-						ws[WINDOW_TRACKBAR_UV_DIAM]*2,
+//						ws[WINDOW_TRACKBAR_UV_DIAM]*2,
+						2,
 						ws[WINDOW_TRACKBAR_LUM],
 						ScalingValue,
 						255
@@ -520,6 +560,7 @@ Keyer::Keyer(IPipeline* obj, uchar* mask): IPipeline(obj)
 {
 	this->finalMask = mask;
 	this->parabolic = calc_parabola_vertex(0, 0, 512, 1, 1024, 0);
+	this->packed = nullptr;
 }
 
 void Keyer::create(int blend=480)
@@ -551,6 +592,28 @@ void Keyer::create(int blend=480)
 
 }
 
+
+void Keyer::pack()
+{
+	assert(this->packed!=nullptr);
+	const int srcAlignedWidth = (this->iWidth / 2);
+	const int dstAlignedWidth = this->rowLength/16;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
+
+	yuyvUnPackedToyuyvpacked<<<grid, block>>>(
+			this->packed,
+			this->video,
+			dstAlignedWidth,
+			srcAlignedWidth,
+			this->iHeight
+	);
+
+	this->cudaStatus = cudaDeviceSynchronize();
+	this->checkCudaError("synchronize kernel", "Device");
+	assert(this->cudaStatus==cudaSuccess);
+}
+
 void Pipeline::run()
 {
 	this->load();
@@ -565,12 +628,22 @@ void Pipeline::run()
 
 	Preview prev(this->preproc);
 
+	ColorBalancer colB;
+
+	ContourDetector cd;
+
+
 	int outputCounter = 0;
+	cv::cuda::GpuMat rgb;
+	rgb.create(preproc->getHeight(), preproc->getWidth(), CV_8UC3);
+	rgb.step = 5760;
+
+	cv::Mat dd;
 
 	while(event!= WINDOW_EVENT_EXIT)
 	{
 		event = this->container->getEvent();
-		input->run();
+		input->run(settings->getTrackbarValues()[WINDOW_TRACKBAR_DELAY]);
 
 		if(input->isOutput())
 		{
@@ -579,8 +652,18 @@ void Pipeline::run()
 			preproc->unpack();
 			preproc->create();
 //			preproc->convertToRGB();
-
-			yoloMask->getBatch();
+////
+//			rgb.data = (uchar*)preproc->getRGB();
+////
+//			rgb.download(dd);
+//
+//			colB.setImage(&dd);
+//			colB.Brightness(settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]);
+//			colB.saturation(settings->getTrackbarValues()[WINDOW_TRACKBAR_SAT]);
+//			colB.finish();
+//
+//			rgb.upload(dd);
+//			yoloMask->getBatch();
 
 //			prev.load(preproc->getRGB());
 //			prev.preview(main->getHandle());
@@ -589,6 +672,17 @@ void Pipeline::run()
 			{
 			case WINDOW_EVENT_CAPTURE:
 				snapShot->convertToRGB();
+
+//				rgb.data = (uchar*)snapShot->getRGB();
+//				rgb.download(dd);
+//
+//				colB.setImage(&dd);
+//				colB.Brightness(settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]);
+//				colB.saturation(settings->getTrackbarValues()[WINDOW_TRACKBAR_SAT]);
+//				colB.finish();
+//
+//				rgb.upload(dd);
+
 				snapShot->takeSnapShot();
 
 				keyingWindow->loadImage(snapShot->getSnapShot());
@@ -598,6 +692,9 @@ void Pipeline::run()
 				chrommaMask->output();
 				if(chrommaMask->isMask())
 				{
+//					cd.setImage(chrommaMask->getMask());
+//					bool changed = true;
+//					cd.detect(changed);
 					chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 					chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 					chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
@@ -629,11 +726,11 @@ void Pipeline::run()
 				prev.load(chrommaMask->getMaskRGB());
 				prev.preview(maskPreview->getHandle());
 				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
-				// TODO: keyer->pack() -> pack the output video filled with the key.
-				// TODO: input->output() -> send output to the deckink
-				keyer->convertToRGB(keyer->getVideo());
-				prev.load(keyer->getRGB());
-				prev.preview(outputWindow->getHandle());
+				keyer->pack();
+				input->sendOut(keyer->getOutput());
+//				keyer->convertToRGB(keyer->getVideo());
+//				prev.load(keyer->getRGB());
+//				prev.preview(outputWindow->getHandle());
 				#endif
 			}
 

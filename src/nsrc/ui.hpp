@@ -109,7 +109,8 @@ private:
 											WINDOW_TRACKBAR_LUM,
 											WINDOW_TRACKBAR_KEYTOP,
 											WINDOW_TRACKBAR_KEYBOTTOM,
-											WINDOW_TRACKBAR_NMS,
+											WINDOW_TRACKBAR_BRIGHTNESS,
+											WINDOW_TRACKBAR_SAT,
 										};
 	std::unordered_map<std::string, int> trackbarValues;
 public:
@@ -123,10 +124,11 @@ public:
 		cv::createTrackbar(this->trackbars[5], this->windowName, 0, 50, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[6], this->windowName, 0, 50, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[7], this->windowName, 0, 50, updateTrackbar, (void*)this);
-		cv::createTrackbar(this->trackbars[8], this->windowName, 0, 50, updateTrackbar, (void*)this);
+		cv::createTrackbar(this->trackbars[8], this->windowName, 0, 70, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[9], this->windowName, 0, 300, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[10], this->windowName, 0, 300, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[11], this->windowName, 0, 100, updateTrackbar, (void*)this);
+		cv::createTrackbar(this->trackbars[12], this->windowName, 0, 100, updateTrackbar, (void*)this);
 
 		for(std::string& elem : trackbars)
 		{

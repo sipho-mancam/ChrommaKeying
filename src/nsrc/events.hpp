@@ -38,7 +38,8 @@
 #define WINDOW_TRACKBAR_LUM "LUM"
 #define WINDOW_TRACKBAR_KEYTOP "Key Top"
 #define WINDOW_TRACKBAR_KEYBOTTOM "Key Bottom"
-#define WINDOW_TRACKBAR_NMS "NMS"
+#define WINDOW_TRACKBAR_BRIGHTNESS "Brightness"
+#define WINDOW_TRACKBAR_SAT "saturation"
 
 #define VK_LCONTROL 0
 #define VK_F1 190

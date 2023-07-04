@@ -121,7 +121,7 @@ std::vector<cv::Mat> process_mask(const float* proto, int proto_size, std::vecto
       }
     }
    // cv::Mat mask_mat2;
-    cv::Mat mask_mat2(kInputH , kInputW , CV_32FC1);
+    cv::Mat mask_mat2;
     cv::resize(mask_mat, mask_mat2, cv::Size(kInputW, kInputH));
     masks.push_back(mask_mat2);
   }
