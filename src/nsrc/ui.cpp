@@ -104,6 +104,17 @@ int WindowI::parseKey()
 	case 's':
 		return WINDOW_EVENT_SAVE_IMAGE;
 		break;
+	case 'S':
+		return WINDOW_EVENT_SAVE_IMAGE;
+	case 'r':
+		return WINDOW_EVENT_CLEAR_TAB;
+	case 'R':
+		return WINDOW_EVENT_CLEAR_TAB;
+	case 'a':
+		return WINDOW_MODE_CLEAR | WINDOW_EVENT_CHANGE_MODE;
+	case 'A':
+		return WINDOW_MODE_CLEAR | WINDOW_EVENT_CHANGE_MODE;
+
 	default:
 		return -1;
 	}
@@ -122,11 +133,12 @@ void KeyingWindow::show()
 {
 	this->process();
 	if(this->rgbData==nullptr)return;
-	cv::imshow(this->windowName, this->previewMat);
+//	cv::imshow(this->windowName, this->previewMat);
 }
 
 void KeyingWindow::update()
 {
+
 	int rectangleSize = abs(this->mouseData.iXDownDynamic - this->mouseData.x); // the width/2 and height/2 of the rectangle (square)
 	cv::Mat prevClone = this->previewMat.clone();
 	if(this->rgbData==nullptr)return;
@@ -158,8 +170,8 @@ void KeyingWindow::update()
 
 void SettingsWindow::init()
 {
-	cv::setTrackbarPos(this->trackbars[0], this->windowName, this->windowSettings.m_BlendPos);
-	cv::setTrackbarPos(this->trackbars[1], this->windowName, 1);
+	cv::setTrackbarPos(this->trackbars[0], this->windowName, 410);
+	cv::setTrackbarPos(this->trackbars[1], this->windowName, 3);
 	cv::setTrackbarPos(this->trackbars[2], this->windowName, this->windowSettings.m_iUV_Diam);
 	cv::setTrackbarPos(this->trackbars[3], this->windowName, this->windowSettings.m_iOuter_Diam);
 	cv::setTrackbarPos(this->trackbars[4], this->windowName, this->windowSettings.m_iLum_Diam);
@@ -186,7 +198,7 @@ void WindowsContainer::addWindow(WindowI *w)
 
 int WindowsContainer::dispatchKey()
 {
-	this->pressedKey = waitKey(2);
+	this->pressedKey = waitKey(10);
 	if(windows.empty())return -1;
 	if(this->pressedKey == -1)return -1;
 	if(this->pressedKey == WINDOW_EVENT_EXIT)

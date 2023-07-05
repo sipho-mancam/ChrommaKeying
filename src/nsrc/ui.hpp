@@ -116,7 +116,7 @@ private:
 public:
 	SettingsWindow(std::string windowHandle): WindowI(windowHandle)
 	{
-		cv::createTrackbar(this->trackbars[0], this->windowName, 0, 2000, updateTrackbar, (void*)this);
+		cv::createTrackbar(this->trackbars[0], this->windowName, 0, 900, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[1], this->windowName, 0, 30, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[2], this->windowName, 0, 20, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[3], this->windowName, 0, 20, updateTrackbar, (void*)this);

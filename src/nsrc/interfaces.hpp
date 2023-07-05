@@ -160,7 +160,7 @@ public:
 	Preprocessor(IPipeline* , uchar2* video, uchar2*key, uchar2*fill);
 	Preprocessor(uchar2* uvideo, uchar2* ukey, uchar2* fill);
 	void unpack(); // unpack yuv to yuyv
-	void create() override; // Some more pre-processing logic
+	void create(double gamma); // Some more pre-processing logic
 	void init() override;
 	void reload(uchar2* pVideo, uchar2* pKey, uchar2* pFill);
 	void load(uint4 *v, uint4 *k, uint4* f, uint4* av, uchar3* rgb);
@@ -207,7 +207,7 @@ private:
 	uchar* lookupBuffer;
 	bool loaded;
 	uint4* snapShot;
-
+	int mode;
 public:
 
 	LookupTable(IPipeline *obj);
@@ -219,6 +219,7 @@ public:
 	uchar* output(){return this->lookupBuffer;}
 	bool isLoaded(){return loaded;}
 	void clearTable();
+	void clearSelection(bool clickEn, MouseData& md);
 };
 
 

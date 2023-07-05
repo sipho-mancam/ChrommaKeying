@@ -21,6 +21,8 @@
 #include "color_balance.hpp"
 #include "contours.hpp"
 #include "cuda_runtime_api.h"
+#include <chrono>
+
 
 /**** Utils *****/
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
@@ -37,8 +39,9 @@ __global__ void gammaCorrect(uint4* unpackedVideo, int srcAlignedWidth, int heig
 
 	pixelValue->w = pow(((double)pixelValue->w*1.0/1024), gamma) * 1024;
 	pixelValue->y = pow(((double)pixelValue->y*1.0/1024), gamma) * 1024;
-
 }
+
+
 
 IPipeline::IPipeline()
 {
@@ -176,30 +179,32 @@ void Input::load(uchar2* pv, uchar2* pk, uchar2* pf)
 
 void Input::run(int delay)
 {
-	const dim3 block(16, 16);
-	const dim3 grid(iDivUp(this->rowLength/16, block.x), iDivUp(this->iHeight, block.y));
-	const int srcAlignedWidth = this->rowLength/16;
-	const int dstAlignedWidth = this->iWidth/2;
-
+	if(delay <= 0) delay = 1;
 	input->WaitForFrames(delay);
-	static void* videoFrame;
+	void* videoFrame;
 	this->in = false;
-	if(videoFrame)
-		free(videoFrame);
-	videoFrame = this->input->imagelistVideo.GetFrame(true);
+
+	if(input->imagelistFill.GetFrameCount()<1 || input->imagelistKey.GetFrameCount()<1)
+		return;
+
+	bool ready = this->input->imagelistVideo.GetFrameCount()>delay;
+	videoFrame = this->input->imagelistVideo.GetFrame(ready);
+
 	if(!videoFrame)
 	{
 		this->in  = false;
 		return;
 	}
-	void* keyFrame = this->input->imagelistKey.GetFrame(true);
-	if(!keyFrame)
+
+	void* fillFrame = this->input->imagelistFill.GetFrame(true);
+	if(!fillFrame)
 	{
 		this->in  = false;
 		return;
 	}
-	void* fillFrame = this->input->imagelistFill.GetFrame(true);
-	if(!fillFrame)
+
+	void* keyFrame = this->input->imagelistKey.GetFrame(true);
+	if(!keyFrame)
 	{
 		this->in  = false;
 		return;
@@ -217,12 +222,19 @@ void Input::run(int delay)
 	this->checkCudaError("copy memory", " pFill");
 	assert((this->cudaStatus == cudaSuccess));
 
+	if(ready)
+	{
+		if(videoFrame)
+			free(videoFrame);
+	}
 
 	if(fillFrame)
 		free(fillFrame);
 	if(keyFrame)
 		free(keyFrame);
+
 	this->in = true;
+
 }
 
 void Input::sendOut(uint4* output)
@@ -320,7 +332,7 @@ void Preprocessor::unpack()
 
 
 
-void Preprocessor::create()
+void Preprocessor::create(double gamma)
 {
 //	cv::cuda::GpuMat input(this->iHeight, this->iWidth, CV_32SC4, this->augVideo, this->frameSizeUnpacked/this->iHeight);
 //	cv::cuda::GpuMat output;//(this->iHeight, this->iWidth, CV_32SC4);
@@ -334,7 +346,7 @@ void Preprocessor::create()
 			this->augVideo,
 			srcAlignedWidth,
 			this->iHeight,
-			0.45
+			gamma
 	);
 
 	this->cudaStatus = cudaDeviceSynchronize();
@@ -352,6 +364,7 @@ LookupTable::LookupTable(IPipeline *obj): IPipeline(obj)
 	this->lookupBuffer = nullptr;
 	this->loaded = false;
 	this->snapShot = nullptr;
+	mode  = WINDOW_MODE_KEYER;
 }
 
 void LookupTable::create()
@@ -361,6 +374,7 @@ void LookupTable::create()
 
 void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws)
 {
+	if(mode != WINDOW_MODE_KEYER) return;
 	if(!clickEn)return;
 
 	if (md.bHandleLDown)
@@ -405,7 +419,30 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 
 void LookupTable::clearTable()
 {
-	this->cudaStatus = cudaMemset(this->lookupBuffer, 0, this->iWidth*this->iHeight*sizeof(uchar));
+	this->cudaStatus = cudaMemset(this->lookupBuffer, 0, CUDA_LOOKUP_SIZE);
+	assert(this->cudaStatus==cudaSuccess);
+}
+
+void LookupTable::clearSelection(bool clickEn, MouseData& md)
+{
+	if(this->mode != WINDOW_MODE_CLEAR) return;
+	if(!clickEn) return;
+
+	int rectWidth = md.iXDownDynamic-md.iXUpDynamic;
+	const dim3 block(16, 16);
+	const dim3 grid(iDivUp(rectWidth, block.x),iDivUp(rectWidth, block.y));
+
+	correctSelection<<<grid, block>>>(
+			this->snapShot,
+			this->lookupBuffer,
+			md.iXUpDynamic,
+			md.iYUpDynamic,
+			(this->iWidth / 2),
+			this->iHeight
+			);
+
+	this->cudaStatus = cudaGetLastError();
+	this->checkCudaError("Launch kernel", "Device");
 	assert(this->cudaStatus==cudaSuccess);
 }
 
@@ -421,7 +458,7 @@ void IMask::erode(int size)
 
 	// erode output mask
 	int an = size;
-	cv::Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an));
+	cv::Mat element = getStructuringElement(cv::MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an));
 	Ptr<cv::cuda::Filter> erodeFilter = cv::cuda::createMorphologyFilter(MORPH_ERODE, chrommaMaskInput.type(), element);
 	erodeFilter->apply(chrommaMaskInput, chrommaMaskOutput);
 
@@ -494,7 +531,7 @@ uchar* ChrommaMask::output()
 {
 	this->create();
 	if(!this->mask)return nullptr;
-	this->update(); // clean it up and post-process it.
+//	this->update(); // clean it up and post-process it.
 	return this->maskBuffer;
 }
 
@@ -642,108 +679,73 @@ void Pipeline::run()
 
 	while(event!= WINDOW_EVENT_EXIT)
 	{
+		auto startT = std::chrono::system_clock::now();
 		event = this->container->getEvent();
 		input->run(settings->getTrackbarValues()[WINDOW_TRACKBAR_DELAY]);
 
+		this->mtx->lock();
 		if(input->isOutput())
 		{
 			outputCounter = 0;
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
-			preproc->create();
-//			preproc->convertToRGB();
-////
-//			rgb.data = (uchar*)preproc->getRGB();
-////
-//			rgb.download(dd);
-//
-//			colB.setImage(&dd);
-//			colB.Brightness(settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]);
-//			colB.saturation(settings->getTrackbarValues()[WINDOW_TRACKBAR_SAT]);
-//			colB.finish();
-//
-//			rgb.upload(dd);
-//			yoloMask->getBatch();
-
-//			prev.load(preproc->getRGB());
-//			prev.preview(main->getHandle());
+			preproc->create((100.0-settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]*1.0)/100.0);
+//		}
 
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
 				snapShot->convertToRGB();
-
-//				rgb.data = (uchar*)snapShot->getRGB();
-//				rgb.download(dd);
-//
-//				colB.setImage(&dd);
-//				colB.Brightness(settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]);
-//				colB.saturation(settings->getTrackbarValues()[WINDOW_TRACKBAR_SAT]);
-//				colB.finish();
-//
-//				rgb.upload(dd);
-
 				snapShot->takeSnapShot();
-
 				keyingWindow->loadImage(snapShot->getSnapShot());
 				keyingWindow->captured();
 				keyingWindow->show();
-
-				chrommaMask->output();
-				if(chrommaMask->isMask())
-				{
-//					cd.setImage(chrommaMask->getMask());
-//					bool changed = true;
-//					cd.detect(changed);
-					chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
-					chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
-					chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
-					chrommaMask->toRGB();
-
-					prev.load(chrommaMask->getMaskRGB());
-					prev.preview(maskPreview->getHandle());
-//					keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
-				}
-
 				break;
 
 			case WINDOW_EVENT_SAVE_IMAGE:
 
 				break;
 
+			case WINDOW_EVENT_CLEAR_TAB:
+				lookup->clearTable();
+				break;
 			}
 
 			if(chrommaMask->isMask())
 			{
 
-				chrommaMask->output();
-				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
-				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
+//				chrommaMask->output();
+//				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
+//				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 //				chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 
 				#ifndef DEBUG
-				chrommaMask->toRGB();
-				prev.load(chrommaMask->getMaskRGB());
-				prev.preview(maskPreview->getHandle());
+//				chrommaMask->toRGB();
+//				prev.load(chrommaMask->getMaskRGB());
+//				prev.preview(maskPreview->getHandle());
+
+				#endif
 				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
 				keyer->pack();
 				input->sendOut(keyer->getOutput());
-//				keyer->convertToRGB(keyer->getVideo());
-//				prev.load(keyer->getRGB());
-//				prev.preview(outputWindow->getHandle());
-				#endif
+
 			}
 
-			if(keyingWindow->isCaptured())// frame is captured
+			if(keyingWindow->isCaptured())
 			{
-				keyingWindow->update();
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
+				chrommaMask->output();
 			}
+
 		}
 		else
 		{
 			outputCounter ++;
 		}
+		this->mtx->unlock();
+		auto endT = std::chrono::system_clock::now();
+		if(std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() > 40)
+			std::cout << "Runtime: " << std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() << "ms" << std::endl;
 	}
 }
 

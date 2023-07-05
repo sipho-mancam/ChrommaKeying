@@ -107,6 +107,12 @@ __global__ void yuyvUmPackedToRGB_lookup(uint4* , uchar3* , int , int , int , ui
 __global__ void yuyv_Unpacked_GenerateMask(uint4* , uchar*, uchar* , int , int, int , int ,int);
 __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* , uchar* , int , int , int , int ,int , int ,float ,int );//
 __global__ void yuyvUnPackedToyuyvpacked(uint4* , uint4 *, int , int , int );
+__global__ void correctSelection(uint4* , uchar* ,  int , int , int , int );
+
+//extern inline __device__ double GetBitPos3(double3 pos);
+//extern inline __device__  uchar GetBit3(double pos, uchar* LookupTable);
+//extern inline __device__ void ClearBit3(double pos, uchar* LookupTable);
+
 
 double4 calc_parabola_vertex(double x1, double y1, double x2, double y2, double x3, double y3);
 void PrepareYoloData(bool ,float );

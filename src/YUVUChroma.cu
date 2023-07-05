@@ -324,7 +324,7 @@ cudaError_t cudaLookUpReset()
 	return cudaStatus;
 }
 
-inline __device__ double GetBitPos3(double3 pos)
+extern inline __device__ double GetBitPos3(double3 pos)
 {
 	return (pos.x* 1048576.0) + (pos.y*1024.0) + pos.z;
 }
@@ -350,7 +350,7 @@ inline __device__  bool GetBit(double4 pos, uchar* LookupTable)
 	return ret;
 }
 
-inline __device__  uchar GetBit3(double pos, uchar* LookupTable)
+extern inline __device__  uchar GetBit3(double pos, uchar* LookupTable)
 {
 	if (pos < 0)
 		return 255;
@@ -376,7 +376,7 @@ inline __device__ void SetBit3(double pos, uchar* LookupTable,uchar value)
 	uchar *llVal = LookupTable + GetByteInt;
 	*llVal= value;
 }
-inline __device__ void ClearBit3(double pos, uchar* LookupTable)
+extern inline __device__ void ClearBit3(double pos, uchar* LookupTable)
 {
 	if (0 > pos)
 		return;
@@ -385,6 +385,21 @@ inline __device__ void ClearBit3(double pos, uchar* LookupTable)
 	int64 GetByteInt = (int64)pos;
 	uchar *llVal = LookupTable + GetByteInt;
 	*llVal = 0;
+}
+
+
+__global__ void correctSelection(uint4* unpackedVideo, uchar* lookup,  int xOffset, int yOffset, int srcAlignedWidth, int height)
+{
+
+	const int xThread = blockIdx.x * blockDim.x + threadIdx.x;
+	const int yThread = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (xThread >= srcAlignedWidth || yThread >= height)
+			return;
+
+	uint4* pixel = &unpackedVideo[(yThread+yOffset) * srcAlignedWidth + xThread];
+	double pixelPos = GetBitPos3(make_double3(pixel->x, pixel->z, pixel->w));
+	ClearBit3(pixelPos, lookup);
 }
 
 

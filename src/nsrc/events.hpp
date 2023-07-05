@@ -12,6 +12,8 @@
 #define WINDOW_EVENT_DRAW 1
 #define WINDOW_EVENT_SAVE_IMAGE 2
 #define WINDOW_EVENT_EXIT 27
+#define WINDOW_EVENT_CLEAR_TAB 3
+#define WINDOW_EVENT_CHANGE_MODE (0x00000000 | (1>>8))
 
 #define WINDOW_NAME_KEYING "Keying Window"
 #define WINDOW_NAME_SETTINGS "Settings"
@@ -40,6 +42,10 @@
 #define WINDOW_TRACKBAR_KEYBOTTOM "Key Bottom"
 #define WINDOW_TRACKBAR_BRIGHTNESS "Brightness"
 #define WINDOW_TRACKBAR_SAT "saturation"
+
+
+#define WINDOW_MODE_KEYER 0
+#define WINDOW_MODE_CLEAR 1
 
 #define VK_LCONTROL 0
 #define VK_F1 190

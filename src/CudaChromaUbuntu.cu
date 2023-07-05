@@ -85,8 +85,16 @@ int main()
 
 	in->load(pVideo, pKey, pFill);
 
+
+	auto t1 = std::chrono::system_clock::now();
 	while(!in->isOutput())
-		in->run(1);
+	{
+		auto t1 = std::chrono::system_clock::now();
+		in->run(3);
+		auto t2 = std::chrono::system_clock::now();
+		std::cout<<std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()<<"ms"<<std::endl;
+	}
+
 
 	Preprocessor *pp = new Preprocessor(in, in->getPVideo(), in->getPKey(), in->getPFill());
 	pp->load(video, key, fill, aVideo, rgbVideo);
@@ -149,7 +157,10 @@ int main()
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(40));
 		uiContainer.dispatchEvent();
-		uiContainer.updateWindows();
+		if(keyingWindow.isCaptured())// frame is captured
+		{
+			keyingWindow.update();
+		}
 	}
 
 	uiContainer.dispatchEvent();
