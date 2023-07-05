@@ -397,7 +397,7 @@ __global__ void correctSelection(uint4* unpackedVideo, uchar* lookup,  int xOffs
 	if (xThread >= srcAlignedWidth || yThread >= height)
 			return;
 
-	uint4* pixel = &unpackedVideo[(yThread+yOffset) * srcAlignedWidth + xThread];
+	uint4* pixel = &unpackedVideo[(yThread+yOffset) * srcAlignedWidth + (xOffset+xThread)];
 	double pixelPos = GetBitPos3(make_double3(pixel->x, pixel->z, pixel->w));
 	ClearBit3(pixelPos, lookup);
 }

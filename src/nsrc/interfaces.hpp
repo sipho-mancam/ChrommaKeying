@@ -219,7 +219,8 @@ public:
 	uchar* output(){return this->lookupBuffer;}
 	bool isLoaded(){return loaded;}
 	void clearTable();
-	void clearSelection(bool clickEn, MouseData& md);
+	void clearSelection(bool clickEn, MouseData md);
+	void setMode(int m){ this->mode = m;}
 };
 
 

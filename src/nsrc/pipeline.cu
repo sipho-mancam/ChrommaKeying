@@ -423,10 +423,11 @@ void LookupTable::clearTable()
 	assert(this->cudaStatus==cudaSuccess);
 }
 
-void LookupTable::clearSelection(bool clickEn, MouseData& md)
+void LookupTable::clearSelection(bool clickEn, MouseData md)
 {
 	if(this->mode != WINDOW_MODE_CLEAR) return;
 	if(!clickEn) return;
+	if(!md.bHandleLDown)return;
 
 	int rectWidth = md.iXDownDynamic-md.iXUpDynamic;
 	const dim3 block(16, 16);
@@ -441,7 +442,7 @@ void LookupTable::clearSelection(bool clickEn, MouseData& md)
 			this->iHeight
 			);
 
-	this->cudaStatus = cudaGetLastError();
+	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("Launch kernel", "Device");
 	assert(this->cudaStatus==cudaSuccess);
 }
@@ -665,17 +666,14 @@ void Pipeline::run()
 
 	Preview prev(this->preproc);
 
-	ColorBalancer colB;
-
-	ContourDetector cd;
-
-
 	int outputCounter = 0;
 	cv::cuda::GpuMat rgb;
 	rgb.create(preproc->getHeight(), preproc->getWidth(), CV_8UC3);
 	rgb.step = 5760;
 
 	cv::Mat dd;
+
+	bool flag = false;
 
 	while(event!= WINDOW_EVENT_EXIT)
 	{
@@ -709,6 +707,19 @@ void Pipeline::run()
 			case WINDOW_EVENT_CLEAR_TAB:
 				lookup->clearTable();
 				break;
+
+			case WINDOW_MODE_CLEAR | WINDOW_EVENT_CHANGE_MODE:
+				if(!flag)
+				{
+					lookup->setMode(WINDOW_MODE_CLEAR);
+					flag = !flag;
+				}
+				else
+				{
+					lookup->setMode(WINDOW_MODE_KEYER);
+				}
+				std::cout<<"Clean Mode"<<std::endl;
+				break;
 			}
 
 			if(chrommaMask->isMask())
@@ -733,6 +744,7 @@ void Pipeline::run()
 
 			if(keyingWindow->isCaptured())
 			{
+				lookup->clearSelection(keyingWindow->isCaptured(), keyingWindow->getMD());
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
 				chrommaMask->output();
 			}
