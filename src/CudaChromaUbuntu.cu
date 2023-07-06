@@ -161,6 +161,15 @@ int main()
 		{
 			keyingWindow.update();
 		}
+
+		if(keyingWindow.captureStatus())
+		{
+			ss->convertToRGB();
+			ss->takeSnapShot();
+			keyingWindow.loadImage(ss->getSnapShot());
+			keyingWindow.disableCapture();
+			keyingWindow.show();
+		}
 	}
 
 	uiContainer.dispatchEvent();

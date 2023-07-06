@@ -693,11 +693,8 @@ void Pipeline::run()
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
-				snapShot->convertToRGB();
-				snapShot->takeSnapShot();
-				keyingWindow->loadImage(snapShot->getSnapShot());
+				keyingWindow->enableCapture();
 				keyingWindow->captured();
-				keyingWindow->show();
 				break;
 
 			case WINDOW_EVENT_SAVE_IMAGE:
@@ -756,7 +753,7 @@ void Pipeline::run()
 		}
 		this->mtx->unlock();
 		auto endT = std::chrono::system_clock::now();
-		if(std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() > 40)
+		if(std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() > 20)
 			std::cout << "Runtime: " << std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() << "ms" << std::endl;
 	}
 }

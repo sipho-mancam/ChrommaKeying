@@ -76,8 +76,11 @@ private:
 	uchar3* rgbData; // this data is in the GPU memory
 	cv::Mat previewMat;
 	cv::cuda::GpuMat gMat;
+	bool startCapture;
+
 	int iWidth, iHeight;
 	void process(); // apply operations to the image buffer
+
 public:
 	KeyingWindow(std::string windowHandle, int iW, int iH): WindowI(windowHandle)
 	{
@@ -87,7 +90,12 @@ public:
 		this->gMat.create(this->iHeight, this->iWidth, CV_8UC3);
 		this->gMat.step = 5760;
 		cv::setWindowProperty(this->windowName, WND_PROP_ASPECT_RATIO,WINDOW_FULLSCREEN);
+		this->startCapture = false;
 	}
+
+	void enableCapture(){this->startCapture = true;}
+	void disableCapture(){this->startCapture = false;}
+	bool captureStatus(){return this->startCapture;}
 	void loadImage(uchar3* d){ this->rgbData = d;}
 	void show();
 	void update() override;// update graphics on the screen
