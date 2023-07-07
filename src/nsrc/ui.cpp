@@ -114,7 +114,10 @@ int WindowI::parseKey()
 		return WINDOW_MODE_CLEAR | WINDOW_EVENT_CHANGE_MODE;
 	case 'A':
 		return WINDOW_MODE_CLEAR | WINDOW_EVENT_CHANGE_MODE;
-
+	case 'f':
+		return WINDOW_EVENT_FULL_KEY;
+	case 'F':
+		return WINDOW_EVENT_FULL_KEY;
 	default:
 		return -1;
 	}

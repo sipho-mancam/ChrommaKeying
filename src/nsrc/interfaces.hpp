@@ -223,6 +223,7 @@ public:
 	void clearTable();
 	void clearSelection(bool clickEn, MouseData md);
 	void setMode(int m){ this->mode = m;}
+	void fullKey();
 };
 
 

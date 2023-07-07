@@ -257,7 +257,7 @@ void Input::clearAll()
 	input->imagelistVideo.ClearAll(input->imagelistVideo.GetFrameCount());
 	input->imagelistFill.ClearAll(input->imagelistFill.GetFrameCount());
 	input->imagelistKey.ClearAll(input->imagelistKey.GetFrameCount());
-	input->ImagelistOutput.ClearAll(2);
+	input->ImagelistOutput.ClearAll(3);
 
 	std::cout<<input->ImagelistOutput.GetFrameCount()<<std::endl;
 
@@ -428,7 +428,7 @@ void LookupTable::update(bool clickEn, MouseData* md, std::unordered_map<std::st
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
 
-//		md->bHandleLDown = f;
+		md->bHandleLDown = false;
 		this->loaded = true;
 	}
 }
@@ -462,6 +462,13 @@ void LookupTable::clearSelection(bool clickEn, MouseData md)
 	this->cudaStatus = cudaDeviceSynchronize();
 	this->checkCudaError("Launch kernel", "Device");
 	assert(this->cudaStatus==cudaSuccess);
+}
+
+void LookupTable::fullKey()
+{
+	this->cudaStatus = cudaMemset(this->lookupBuffer, 255, CUDA_LOOKUP_SIZE);
+	assert(this->cudaStatus==cudaSuccess);
+	this->loaded = true;
 }
 
 void IMask::init()
@@ -737,6 +744,10 @@ void Pipeline::run()
 //					lookup->setMode(WINDOW_MODE_KEYER);
 				}
 				std::cout<<"Clean Mode"<<std::endl;
+				break;
+
+			case WINDOW_EVENT_FULL_KEY:
+				lookup->fullKey();
 				break;
 			}
 
