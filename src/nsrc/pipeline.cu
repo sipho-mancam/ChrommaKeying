@@ -39,6 +39,7 @@ __global__ void gammaCorrect(uint4* unpackedVideo, int srcAlignedWidth, int heig
 
 	pixelValue->w = pow(((double)pixelValue->w*1.0/1024), gamma) * 1024;
 	pixelValue->y = pow(((double)pixelValue->y*1.0/1024), gamma) * 1024;
+
 }
 
 
@@ -155,9 +156,10 @@ Input::Input(VideoIn* i): IPipeline()
 void Input::init()
 {
 	while(this->input->m_sizeOfFrame == -1)
-		std::this_thread::sleep_for(std::chrono::milliseconds(40));
+		std::this_thread::sleep_for(std::chrono::milliseconds(4));
 
-	input->WaitForFrames(-1);
+	input->WaitForFrames(3);
+//	std::cout<<input->imagelistVideo.GetFrameCount()<<std::endl;
 
 	input->imagelistVideo.ClearAll(0);
 	input->imagelistFill.ClearAll(0);
@@ -181,15 +183,17 @@ void Input::run(int delay)
 {
 	if(delay <= 0) delay = 1;
 	input->WaitForFrames(delay);
-	void* videoFrame;
+//	void* videoFrame;
 	this->in = false;
 
 	if(input->imagelistFill.GetFrameCount()<1 || input->imagelistKey.GetFrameCount()<1)
-		return;
+			return;
+//	if(this->input->imagelistVideo.GetFrameCount()<1)return;
+
 
 	bool ready = this->input->imagelistVideo.GetFrameCount()>delay;
-	videoFrame = this->input->imagelistVideo.GetFrame(ready);
-
+	void* videoFrame = this->input->imagelistVideo.GetFrame(ready);
+//
 	if(!videoFrame)
 	{
 		this->in  = false;
@@ -197,30 +201,29 @@ void Input::run(int delay)
 	}
 
 	void* fillFrame = this->input->imagelistFill.GetFrame(true);
-	if(!fillFrame)
-	{
-		this->in  = false;
-		return;
-	}
-
 	void* keyFrame = this->input->imagelistKey.GetFrame(true);
-	if(!keyFrame)
-	{
-		this->in  = false;
-		return;
-	}
+
+
 
 	this->cudaStatus = cudaMemcpy(this->pVideo, videoFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
 	this->checkCudaError("copy memory", " pVideo");
 	assert((this->cudaStatus == cudaSuccess));
 
-	this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
-	this->checkCudaError("copy memory", " pKey");
-	assert((this->cudaStatus == cudaSuccess));
+	if(keyFrame)
+	{
+		this->cudaStatus = cudaMemcpy(this->pKey, keyFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
+		this->checkCudaError("copy memory", " pKey");
+		assert((this->cudaStatus == cudaSuccess));
+	}
 
-	this->cudaStatus = cudaMemcpy(this->pFill, fillFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
-	this->checkCudaError("copy memory", " pFill");
-	assert((this->cudaStatus == cudaSuccess));
+
+	if(fillFrame)
+	{
+		this->cudaStatus = cudaMemcpy(this->pFill, fillFrame, this->frameSizePacked, cudaMemcpyHostToDevice);
+		this->checkCudaError("copy memory", " pFill");
+		assert((this->cudaStatus == cudaSuccess));
+	}
+
 
 	if(ready)
 	{
@@ -240,7 +243,7 @@ void Input::run(int delay)
 void Input::sendOut(uint4* output)
 {
 	assert(output!=nullptr);
-	uint4* data = new uint4[this->frameSizePacked];
+	uint4* data = (uint4*)malloc(this->frameSizePacked);
 
 	this->cudaStatus = cudaMemcpy(data, output, this->frameSizePacked, cudaMemcpyDeviceToHost);
 	assert(this->cudaStatus==cudaSuccess);
@@ -248,6 +251,17 @@ void Input::sendOut(uint4* output)
 
 }
 
+
+void Input::clearAll()
+{
+	input->imagelistVideo.ClearAll(input->imagelistVideo.GetFrameCount());
+	input->imagelistFill.ClearAll(input->imagelistFill.GetFrameCount());
+	input->imagelistKey.ClearAll(input->imagelistKey.GetFrameCount());
+	input->ImagelistOutput.ClearAll(2);
+
+	std::cout<<input->ImagelistOutput.GetFrameCount()<<std::endl;
+
+}
 
 Preprocessor::Preprocessor(uchar2* video, uchar2*key, uchar2*fill) // these variables must be GPU pointers
 {
@@ -372,12 +386,12 @@ void LookupTable::create()
 	this->loaded = false;
 }
 
-void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws)
+void LookupTable::update(bool clickEn, MouseData* md, std::unordered_map<std::string, int> ws)
 {
 	if(mode != WINDOW_MODE_KEYER) return;
 	if(!clickEn)return;
 
-	if (md.bHandleLDown)
+	if (md->bHandleLDown)
 	{
 		this->loaded = false;
 		int maxRecSize = 200;
@@ -389,9 +403,9 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 						iDivUp((ws[WINDOW_TRACKBAR_OUTER_DIAM]+ws[WINDOW_TRACKBAR_UV_DIAM])*2, block.y)
 						);
 
-		for (int x = (md.iXUpDynamic / 2); x<(md.iXDownDynamic /2); x++)
+		for (int x = (md->iXUpDynamic / 2); x<(md->iXDownDynamic /2); x++)
 		{
-			for (int y = md.iYUpDynamic; y < md.iYDownDynamic; y=y+2)
+			for (int y = md->iYUpDynamic; y < md->iYDownDynamic; y=y+2)
 			{
 				UpdateLookupFrom_XY_Posision_Diffrent_Scaling <<<grid, block>>> (
 						this->snapShot,
@@ -413,6 +427,8 @@ void LookupTable::update(bool clickEn, MouseData md, std::unordered_map<std::str
 		this->cudaStatus = cudaDeviceSynchronize();
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
+
+//		md->bHandleLDown = f;
 		this->loaded = true;
 	}
 }
@@ -421,6 +437,7 @@ void LookupTable::clearTable()
 {
 	this->cudaStatus = cudaMemset(this->lookupBuffer, 0, CUDA_LOOKUP_SIZE);
 	assert(this->cudaStatus==cudaSuccess);
+	this->loaded = false;
 }
 
 void LookupTable::clearSelection(bool clickEn, MouseData md)
@@ -436,7 +453,7 @@ void LookupTable::clearSelection(bool clickEn, MouseData md)
 	correctSelection<<<grid, block>>>(
 			this->snapShot,
 			this->lookupBuffer,
-			md.iXUpDynamic,
+			md.iXUpDynamic/2,
 			md.iYUpDynamic,
 			(this->iWidth / 2),
 			this->iHeight
@@ -675,24 +692,28 @@ void Pipeline::run()
 
 	bool flag = false;
 
+	input->clearAll();
+
 	while(event!= WINDOW_EVENT_EXIT)
 	{
 		auto startT = std::chrono::system_clock::now();
 		event = this->container->getEvent();
 		input->run(settings->getTrackbarValues()[WINDOW_TRACKBAR_DELAY]);
 
-		this->mtx->lock();
+
 		if(input->isOutput())
 		{
+			this->mtx->lock();
 			outputCounter = 0;
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
 			preproc->create((100.0-settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]*1.0)/100.0);
-//		}
+//
 
 			switch(event)
 			{
 			case WINDOW_EVENT_CAPTURE:
+
 				keyingWindow->enableCapture();
 				keyingWindow->captured();
 				break;
@@ -713,7 +734,7 @@ void Pipeline::run()
 				}
 				else
 				{
-					lookup->setMode(WINDOW_MODE_KEYER);
+//					lookup->setMode(WINDOW_MODE_KEYER);
 				}
 				std::cout<<"Clean Mode"<<std::endl;
 				break;
@@ -734,26 +755,36 @@ void Pipeline::run()
 
 				#endif
 				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
+
 				keyer->pack();
+
+				this->mtx->unlock();
+
 				input->sendOut(keyer->getOutput());
 
-			}
+				preproc->convertToRGB(preproc->getVideo());
+				prev.load(preproc->getRGB());
+				prev.preview(main->getHandle());
+
+
+
+			}else this->mtx->unlock();
+
 
 			if(keyingWindow->isCaptured())
 			{
-				lookup->clearSelection(keyingWindow->isCaptured(), keyingWindow->getMD());
+//				lookup->clearSelection(keyingWindow->isCaptured(), keyingWindow->getMD());
+				this->mtx->lock();
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
+				input->clearAll();
+				this->mtx->unlock();
 				chrommaMask->output();
 			}
 
 		}
-		else
-		{
-			outputCounter ++;
-		}
-		this->mtx->unlock();
+
 		auto endT = std::chrono::system_clock::now();
-		if(std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() > 20)
+//		if(std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() > 20)
 			std::cout << "Runtime: " << std::chrono::duration_cast<std::chrono::milliseconds>(endT - startT).count() << "ms" << std::endl;
 	}
 }
@@ -820,6 +851,20 @@ void allocateMemory(void** devptr, long int size)
 void startPipeline(Pipeline* pipeline)
 {
 	pipeline->run();
+}
+
+void showPreview(ChrommaMask* obj, Preview * prevObj, Pipeline *pp, std::string windowName)
+{
+	while(!pp->p_exit())
+	{
+		if(obj->isMask())
+		{
+			obj->toRGB();
+			prevObj->load(obj->getMaskRGB());
+			prevObj->preview(windowName);
+		}
+	}
+
 }
 
 

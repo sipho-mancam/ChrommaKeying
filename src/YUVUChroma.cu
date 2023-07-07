@@ -398,6 +398,9 @@ __global__ void correctSelection(uint4* unpackedVideo, uchar* lookup,  int xOffs
 			return;
 
 	uint4* pixel = &unpackedVideo[(yThread+yOffset) * srcAlignedWidth + (xOffset+xThread)];
+//	uint4* pixel2 = &unpackedVideo[(yThread+yOffset) * srcAlignedWidth + (xOffset+xThread+1)];
+//	double dist = sqrt(pow((double)(pixel->x-pixel2->x), 2)+ pow((double)(pixel->z-pixel2->z), 2));
+//	printf("(%.5f) \n", dist);
 	double pixelPos = GetBitPos3(make_double3(pixel->x, pixel->z, pixel->w));
 	ClearBit3(pixelPos, lookup);
 }
@@ -1587,6 +1590,7 @@ __global__ void yuyv_Unpacked_GenerateMask(uint4* src_Video_Unapc, uchar *maskDo
 	double bitpos1 = GetBitPos3(val1);
 	double3 val2 = make_double3(macroPxVideoReal.x, macroPxVideoReal.z, macroPxVideoReal.w);
 	double bitpos2 = GetBitPos3(val2);
+
 	maskDownload[y * dstAlignedWidth + (x * 2) + 0] = GetBit3(bitpos1,LookupTable);
 	maskDownload[y * dstAlignedWidth + (x * 2) + 1] = GetBit3(bitpos2, LookupTable);
 }
@@ -2804,8 +2808,8 @@ __global__ void UpdateLookupFrom_XY_Posision_Diffrent_Scaling(uint4* src_Video_U
 	if (uKeyValue == 0)
 		return;
 
-	int myFX = macroPxVideo->x + fx ;
-	int myFy = macroPxVideo->z + fy ;
+	int myFX = macroPxVideo->x + fx;
+	int myFy = macroPxVideo->z + fy;
 
 	for (int c = -iLum_Diameter; c < iLum_Diameter; c++)
 	{

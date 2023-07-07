@@ -58,7 +58,7 @@ public:
 	void enableKeys(){this->keyEnabled = true;}
 	bool isKeysEnabled(){return this->keyEnabled;}
 	void disableKeys(){this->keyEnabled = false;}
-	MouseData getMD(){return this->mouseData;}
+	MouseData* getMD(){return &this->mouseData;}
 	int getPressKey(){ return key;}
 	void setKey(int k){key = k;}
 	bool isCaptured(){return this->captureKey;}
@@ -132,7 +132,7 @@ public:
 		cv::createTrackbar(this->trackbars[5], this->windowName, 0, 50, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[6], this->windowName, 0, 50, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[7], this->windowName, 0, 50, updateTrackbar, (void*)this);
-		cv::createTrackbar(this->trackbars[8], this->windowName, 0, 70, updateTrackbar, (void*)this);
+		cv::createTrackbar(this->trackbars[8], this->windowName, 0, 100, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[9], this->windowName, 0, 300, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[10], this->windowName, 0, 300, updateTrackbar, (void*)this);
 		cv::createTrackbar(this->trackbars[11], this->windowName, 0, 100, updateTrackbar, (void*)this);

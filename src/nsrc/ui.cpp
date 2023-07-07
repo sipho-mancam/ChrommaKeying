@@ -178,10 +178,10 @@ void SettingsWindow::init()
 	cv::setTrackbarPos(this->trackbars[5], this->windowName, this->windowSettings.m_iErase_Diam);
 	cv::setTrackbarPos(this->trackbars[6], this->windowName, this->windowSettings.m_iErase_Lum_Diam);
 	cv::setTrackbarPos(this->trackbars[7], this->windowName, this->windowSettings.m_iErode);
-	cv::setTrackbarPos(this->trackbars[8], this->windowName, this->windowSettings.m_iDilate);
+	cv::setTrackbarPos(this->trackbars[8], this->windowName, 100);
 	cv::setTrackbarPos(this->trackbars[9], this->windowName, this->windowSettings.m_iLowerlimit);
 	cv::setTrackbarPos(this->trackbars[10], this->windowName, this->windowSettings.m_iUpperlimit);
-	cv::setTrackbarPos(this->trackbars[11], this->windowName, 100);
+	cv::setTrackbarPos(this->trackbars[11], this->windowName, 80);
 }
 
 

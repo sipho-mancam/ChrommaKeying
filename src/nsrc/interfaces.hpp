@@ -147,6 +147,8 @@ public:
 	uchar2* getPKey(){return this->pKey;}
 	uchar2* getPFill(){return this->pFill;}
 	void sendOut(uint4* output);
+
+	void clearAll();
 };
 
 
@@ -215,7 +217,7 @@ public:
 	void load(uchar* lb, uint4* snap){this->lookupBuffer = lb; this->snapShot = snap;}
 	void setSnap(uint4* snap){this->snapShot = snap;}
 
-	void update(bool clickEn, MouseData md, std::unordered_map<std::string, int> ws);
+	void update(bool clickEn, MouseData* md, std::unordered_map<std::string, int> ws);
 	uchar* output(){return this->lookupBuffer;}
 	bool isLoaded(){return loaded;}
 	void clearTable();
@@ -388,10 +390,11 @@ public:
 	void addPipelineObject(IPipeline* obj, std::string name);
 	void assertObjects();
 	void viewPipeline(); // prints all the objects in the pipeline in the order they appear
+	bool p_exit(){return event == WINDOW_EVENT_EXIT;}
 };
 
 void startPipeline(Pipeline *obj);
 void allocateMemory(void** devptr, long int size);
-
+void showPreview(ChrommaMask* obj, Preview * prevObj, Pipeline* pl, std::string windowName);
 
 #endif /* SRC_NSRC_INTERFACES_HPP_ */

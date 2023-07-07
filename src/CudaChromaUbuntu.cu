@@ -131,6 +131,7 @@ int main()
 	WindowI maskPreview(WINDOW_NAME_MASK);
 	WindowI outputWindow(WINDOW_NAME_OUTPUT);
 
+
 	keyingWindow.enableMouse();
 	keyingWindow.enableKeys();
 
@@ -153,9 +154,11 @@ int main()
 
 	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
 
+//	std::thread *previewThread = new std::thread(showPreview, cm, prev, pipeline, maskPreview.getHandle());
+
 	while(uiContainer.dispatchKey()!= WINDOW_EVENT_EXIT)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(40));
+		std::this_thread::sleep_for(std::chrono::milliseconds(30));
 		uiContainer.dispatchEvent();
 		if(keyingWindow.isCaptured())// frame is captured
 		{
@@ -170,10 +173,12 @@ int main()
 			keyingWindow.disableCapture();
 			keyingWindow.show();
 		}
+
 	}
 
 	uiContainer.dispatchEvent();
 	processingThread->join();
+//	previewThread->join();
 
 	cudaFree(chrommaLookupBuffer);
 	cudaFree(chrommaMask);

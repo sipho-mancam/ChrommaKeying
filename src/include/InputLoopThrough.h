@@ -24,7 +24,7 @@ public:
 	void AddFrame(void* ptr,long Size);
 	void AddFrame(void* ptr);
 	void *GetFrame(bool bPop);
-	void  ClearAll(int iPopTo);
+	void  ClearAll(int iPopTo=0);
 	unsigned int GetFrameCount();
 	std::mutex mtxVideo;           // mutex for critical section
 	neosmart_event_t events;

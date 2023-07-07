@@ -346,8 +346,10 @@ unsigned int FrameHandeler::GetFrameCount()
 void  FrameHandeler::ClearAll(int iPopTo)
 {
 
+	if(imagelist.size() <= 1) return;
+
 	mtxVideo.lock();
-	while (imagelist.size() >iPopTo)
+	while (imagelist.size()>iPopTo)
 	{
 		void * ptr_Video_Frame = imagelist.back();
 		imagelist.pop_back();
@@ -355,7 +357,6 @@ void  FrameHandeler::ClearAll(int iPopTo)
 
 	}
 	mtxVideo.unlock();
-	std::cout << imagelist.size() << std::endl;
 }
 
 void *FrameHandeler::GetFrame(bool bPop)
