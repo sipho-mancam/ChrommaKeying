@@ -12,9 +12,16 @@
 #include <YUVUChroma.cuh>
 #include <stdio.h>
 #include <opencv2/cudafilters.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudaarithm.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/utility.hpp>
+#include <opencv2/core/types.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudaarithm.hpp>
+#include <opencv2/cudawarping.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/ml.hpp>
+
 #include "interfaces.hpp"
 #include <ui.hpp>
 #include "yolo.hpp"
@@ -39,8 +46,99 @@ __global__ void gammaCorrect(uint4* unpackedVideo, int srcAlignedWidth, int heig
 
 	pixelValue->w = pow(((double)pixelValue->w*1.0/1024), gamma) * 1024;
 	pixelValue->y = pow(((double)pixelValue->y*1.0/1024), gamma) * 1024;
-
 }
+
+
+__global__ void lbpKernel(uint4* unpackedVideo, uchar* lbpImage, int width, int height, uint4* key)
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    uint4 keyV = key[row * width + col];
+//    if(keyV.w <= 64) return;
+
+    if (col < width && row < height)
+    {
+        int center = (((unpackedVideo[row * width + col].w/1024.0) + (unpackedVideo[row * width + col].y/1024.0))/2)*255;
+        unsigned char lbp = 0;
+
+        // Calculate the LBP value using a 3x3 neighborhood
+        for (int i = -1; i <= 1; ++i)
+        {
+            for (int j = -1; j <= 1; ++j)
+            {
+                if (i == 0 && j == 0)
+                    continue;
+
+                int neighborRow = row + i;
+                int neighborCol = col + j;
+
+                if (neighborRow >= 0 && neighborRow < height && neighborCol >= 0 && neighborCol < width)
+                {
+                    unsigned char neighbor = (((unpackedVideo[neighborRow * width + neighborCol].w/1024.0) +
+                    						(unpackedVideo[neighborRow * width + neighborCol].y/1024.0))/2)*255;
+                    // Compare the neighbor's intensity value with the center pixel
+                    if (neighbor >= center)
+                        lbp |= (1 << ((i + 1) * 3 + (j + 1)));
+                }
+            }
+        }
+
+        lbpImage[row * (width*2) + (col*2)+0] = lbp;
+        lbpImage[row * (width*2) + (col*2)+1] = lbp;
+    }
+}
+
+//__global__ void lbp2Mask(uchar* lbpMask, uchar* outputMask, int *refHist,  int x, int y, int w, int h, int distThresh, int srcWidth, int srcHeight)
+//{
+//	 int col = blockIdx.x * blockDim.x + threadIdx.x;
+//	 int row = blockIdx.y * blockDim.y + threadIdx.y;
+//
+//	 int refX = x, refY = y, refWidth = w, refHeight = h;
+//
+//
+//	 int dist = 0;
+//	 int windowHist[256];
+//
+//	 int cX = col+(refHeight*0.1)+refWidth, cY = row+(refWidth*0.25)+refHeight;
+//	 if(cX>srcWidth || cY > srcHeight) return;
+//
+//	 int zeroCount = 0;
+//	 for(int column = col+(refHeight*0.1); column < refWidth; column++)
+//	 {
+//		 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
+//		 {
+//			windowHist[lbpMask[(rowD*srcWidth) + column]] ++;
+//			if(lbpMask[(rowD*srcWidth) + column] == 0)zeroCount ++;
+//		 }
+//	 }
+//
+//	 if(zeroCount >= (refWidth*refHeight*0.7)) return; // if 75% of the data is zeros, skip...
+//
+//	 for(int i=0; i<256; i++)
+//	 {
+//		 dist = pow((double)(windowHist[i] - refHist[i]),2)/ windowHist[i] + refHist[i];
+//	 }
+//
+//
+//
+//
+//	 // paint the mask on this textured area...
+//	 dist = dist/2;
+//	 if(dist < distThresh)
+//	 {
+//		 // shade the window White and return
+//		 for(int column = col+(refHeight*0.1); column < refWidth; column++)
+//		 {
+//			 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
+//			 {
+//				outputMask[(rowD*srcWidth) + column]] = 255;
+//			 }
+//		 }
+//	 }
+//
+//	 // leave the window area black.
+//}
 
 
 
@@ -532,16 +630,33 @@ void ChrommaMask::create()
 	const dim3 block(16, 16);
 	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
 
-	yuyv_Unpacked_GenerateMask <<<grid, block>>> (
-			(uint4*)this->augVideo,
-			this->maskBuffer,
-			this->table->output(),
-			this->iWidth,
-			this->iHeight,
-			srcAlignedWidth,
-			dstAlignedWidth,
-			0
-			);
+	lbpKernel<<<grid, block>>>(
+		(uint4*)this->augVideo,
+		this->maskBuffer,
+		this->iWidth/2,
+		this->iHeight,
+		this->key
+	);
+
+//	lbp2Mask<<<grid, block>>>(
+//			this->tMask,
+//			this->maskBuffer,
+//
+//
+//	);
+
+
+
+//	yuyv_Unpacked_GenerateMask <<<grid, block>>> (
+//			(uint4*)this->augVideo,
+//			this->maskBuffer,
+//			this->table->output(),
+//			this->iWidth,
+//			this->iHeight,
+//			srcAlignedWidth,
+//			dstAlignedWidth,
+//			0
+//			);
 	this->cudaStatus = cudaGetLastError();
 	assert(this->cudaStatus==cudaSuccess);
 

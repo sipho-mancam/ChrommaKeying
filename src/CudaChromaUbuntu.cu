@@ -36,7 +36,7 @@ int main()
 	static int iFrameIndex=0;
 	StartMonitor();
 
-	uchar *chrommaLookupBuffer, *chrommaMask;
+	uchar *chrommaLookupBuffer, *chrommaMask, *textureMask;
 	uchar2 *pVideo, *pKey, *pFill;
 	uchar3* rgbVideo, *vSnapshot, *maskRGB;
 	uint4 *video, *key, *fill, *aVideo, *snapShotV, *packedV;
@@ -69,7 +69,9 @@ int main()
 	allocateMemory((void**)&vSnapshot, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&rgbVideo, in->getWidth()*in->getHeight()*sizeof(uchar3));
 	allocateMemory((void**)&maskRGB, in->getWidth()*in->getHeight()*sizeof(uchar3));
+
 	allocateMemory((void**)&chrommaMask, in->getWidth()*in->getHeight()*sizeof(uchar));
+	allocateMemory((void**)&textureMask, in->getWidth()*in->getHeight()*sizeof(uchar));
 
 	allocateMemory((void**)&chrommaLookupBuffer, 1024*1024*1024);
 
@@ -110,6 +112,7 @@ int main()
 
 	ChrommaMask *cm = new ChrommaMask(pp, lt);
 	cm->load(chrommaMask, maskRGB);
+	cm->setTextureMask(textureMask);
 
 	YoloMask *yolo  = new YoloMask(pp);
 	yolo->load(inputData, detectionsOutput, maskOutput);
@@ -154,7 +157,7 @@ int main()
 
 	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
 
-//	std::thread *previewThread = new std::thread(showPreview, cm, prev, pipeline, maskPreview.getHandle());
+	std::thread *previewThread = new std::thread(showPreview, cm, prev, pipeline, maskPreview.getHandle());
 
 	while(uiContainer.dispatchKey()!= WINDOW_EVENT_EXIT)
 	{
@@ -178,7 +181,7 @@ int main()
 
 	uiContainer.dispatchEvent();
 	processingThread->join();
-//	previewThread->join();
+	previewThread->join();
 
 	cudaFree(chrommaLookupBuffer);
 	cudaFree(chrommaMask);
