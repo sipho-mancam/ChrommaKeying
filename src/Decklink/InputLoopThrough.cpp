@@ -330,7 +330,7 @@ void VideoIn::WaitForFrames(int iDelayFrames)
 	if((imagelistVideo.GetFrameCount()>iDelayFrames)&&(imagelistFill.GetFrameCount()>1)&&(imagelistKey.GetFrameCount()>1))
 		return;
 	//std::cout << "Start WaitForFrames" << std :: endl;
-	WaitForMultipleEvents(events,3,true, 10);
+	WaitForMultipleEvents(events,3,true, WAIT_INFINITE);
 	//std::cout << "WaitForFrames" << std :: endl;
 }
 

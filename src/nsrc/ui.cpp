@@ -141,32 +141,37 @@ void KeyingWindow::show()
 
 void KeyingWindow::update()
 {
+	try{
+		int rectangleSize = abs(this->mouseData.iXDownDynamic - this->mouseData.x); // the width/2 and height/2 of the rectangle (square)
+		cv::Mat prevClone = this->previewMat.clone();
+		if(this->rgbData==nullptr)return;
+		cv::rectangle(prevClone, Point(this->mouseData.x-rectangleSize, mouseData.y-rectangleSize),
+						Point(mouseData.x+rectangleSize, mouseData.y+rectangleSize), Scalar(255, 255, 255), 1, 8, 0);
+		cv::circle(prevClone, cv::Point(mouseData.x, mouseData.y), sqrt((pow(rectangleSize, 2)+pow(rectangleSize, 2)))+4, cv::Scalar(255,255,255),
+				3, 8, 0);
 
-	int rectangleSize = abs(this->mouseData.iXDownDynamic - this->mouseData.x); // the width/2 and height/2 of the rectangle (square)
-	cv::Mat prevClone = this->previewMat.clone();
-	if(this->rgbData==nullptr)return;
-	cv::rectangle(prevClone, Point(this->mouseData.x-rectangleSize, mouseData.y-rectangleSize),
-					Point(mouseData.x+rectangleSize, mouseData.y+rectangleSize), Scalar(255, 255, 255), 1, 8, 0);
-	cv::circle(prevClone, cv::Point(mouseData.x, mouseData.y), sqrt((pow(rectangleSize, 2)+pow(rectangleSize, 2)))+4, cv::Scalar(255,255,255),
-			3, 8, 0);
+		cv::Rect roi(this->mouseData.iXUpDynamic, this->mouseData.iYUpDynamic, rectangleSize*2, rectangleSize*2);
 
-	cv::Rect roi(this->mouseData.iXUpDynamic, this->mouseData.iYUpDynamic, rectangleSize*2, rectangleSize*2);
-
-	if((0 <= roi.x && 0 <= roi.width && roi.x + roi.width <= prevClone.cols &&
-		0 <= roi.y && 0 <= roi.height && roi.y + roi.height <= prevClone.rows))
-	{
-		Mat roiMat = prevClone(roi);
-		Mat roiLargeMat;
-		Size ssize = roiMat.size();
-		if (!ssize.empty())
+		if((0 <= roi.x && 0 <= roi.width && roi.x + roi.width <= prevClone.cols &&
+			0 <= roi.y && 0 <= roi.height && roi.y + roi.height <= prevClone.rows))
 		{
-			cv::resize(roiMat, roiLargeMat, Size((rectangleSize) * 25, (rectangleSize) * 25), 0, 0, INTER_NEAREST);
+			Mat roiMat = prevClone(roi);
+			Mat roiLargeMat;
+			Size ssize = roiMat.size();
+			if (!ssize.empty())
+			{
+				cv::resize(roiMat, roiLargeMat, Size((rectangleSize) * 25, (rectangleSize) * 25), 0, 0, INTER_NEAREST);
 
-			roiLargeMat.copyTo(prevClone.rowRange(0, roiLargeMat.rows).colRange(0, roiLargeMat.cols));
+				roiLargeMat.copyTo(prevClone.rowRange(0, roiLargeMat.rows).colRange(0, roiLargeMat.cols));
+			}
 		}
+		cv::imshow(this->windowName, prevClone);
+		prevClone.release();
+	}catch(std::exception& e)
+	{
+		std::cerr<<e.what()<<std::endl;
 	}
-	cv::imshow(this->windowName, prevClone);
-	prevClone.release();
+
 }
 
 

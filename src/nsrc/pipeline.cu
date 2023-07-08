@@ -32,6 +32,7 @@
 
 
 /**** Utils *****/
+extern bool bGenGenlockStatus();
 inline __device__ __host__ int iDivUp( int a, int b )  		{ return (a % b != 0) ? (a / b + 1) : (a / b); }
 
 __global__ void gammaCorrect(uint4* unpackedVideo, int srcAlignedWidth, int height, double gamma)
@@ -89,56 +90,56 @@ __global__ void lbpKernel(uint4* unpackedVideo, uchar* lbpImage, int width, int 
     }
 }
 
-//__global__ void lbp2Mask(uchar* lbpMask, uchar* outputMask, int *refHist,  int x, int y, int w, int h, int distThresh, int srcWidth, int srcHeight)
-//{
-//	 int col = blockIdx.x * blockDim.x + threadIdx.x;
-//	 int row = blockIdx.y * blockDim.y + threadIdx.y;
-//
-//	 int refX = x, refY = y, refWidth = w, refHeight = h;
-//
-//
-//	 int dist = 0;
-//	 int windowHist[256];
-//
-//	 int cX = col+(refHeight*0.1)+refWidth, cY = row+(refWidth*0.25)+refHeight;
-//	 if(cX>srcWidth || cY > srcHeight) return;
-//
-//	 int zeroCount = 0;
-//	 for(int column = col+(refHeight*0.1); column < refWidth; column++)
-//	 {
-//		 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
-//		 {
-//			windowHist[lbpMask[(rowD*srcWidth) + column]] ++;
-//			if(lbpMask[(rowD*srcWidth) + column] == 0)zeroCount ++;
-//		 }
-//	 }
-//
-//	 if(zeroCount >= (refWidth*refHeight*0.7)) return; // if 75% of the data is zeros, skip...
-//
-//	 for(int i=0; i<256; i++)
-//	 {
-//		 dist = pow((double)(windowHist[i] - refHist[i]),2)/ windowHist[i] + refHist[i];
-//	 }
-//
-//
-//
-//
-//	 // paint the mask on this textured area...
-//	 dist = dist/2;
-//	 if(dist < distThresh)
-//	 {
-//		 // shade the window White and return
-//		 for(int column = col+(refHeight*0.1); column < refWidth; column++)
-//		 {
-//			 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
-//			 {
-//				outputMask[(rowD*srcWidth) + column]] = 255;
-//			 }
-//		 }
-//	 }
-//
-//	 // leave the window area black.
-//}
+__global__ void lbp2Mask(uchar* lbpMask, uchar* outputMask, int *refHist,  int x, int y, int w, int h, int distThresh, int srcWidth, int srcHeight)
+{
+	 int col = blockIdx.x * blockDim.x + threadIdx.x;
+	 int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+	 int refX = x, refY = y, refWidth = w, refHeight = h;
+
+
+	 int dist = 0;
+	 int windowHist[256];
+
+	 int cX = col+(refHeight*0.1)+refWidth, cY = row+(refWidth*0.25)+refHeight;
+	 if(cX>srcWidth || cY > srcHeight) return;
+
+	 int zeroCount = 0;
+	 for(int column = col+(refHeight*0.1); column < refWidth; column++)
+	 {
+		 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
+		 {
+			windowHist[lbpMask[(rowD*srcWidth) + column]] ++;
+			if(lbpMask[(rowD*srcWidth) + column] == 0)zeroCount ++;
+		 }
+	 }
+
+	 if(zeroCount >= (refWidth*refHeight*0.7)) return; // if 75% of the data is zeros, skip...
+
+	 for(int i=0; i<256; i++)
+	 {
+		 dist = pow((double)(windowHist[i] - refHist[i]),2)/ windowHist[i] + refHist[i];
+	 }
+
+
+
+
+	 // paint the mask on this textured area...
+	 dist = dist/2;
+	 if(dist < distThresh)
+	 {
+		 // shade the window White and return
+		 for(int column = col+(refHeight*0.1); column < refWidth; column++)
+		 {
+			 for(int rowD = row+(refWidth*0.25); rowD < refHeight; rowD++)
+			 {
+				outputMask[(rowD*srcWidth) + column] = 255;
+			 }
+		 }
+	 }
+
+	 // leave the window area black.
+}
 
 
 
@@ -279,27 +280,44 @@ void Input::load(uchar2* pv, uchar2* pk, uchar2* pf)
 
 void Input::run(int delay)
 {
-	if(delay <= 0) delay = 1;
+
+	if(this->input->imagelistVideo.GetFrameCount()>delay)
+	{
+		this->clearAll();
+		return;
+	}
+
+//	if(delay <= 0) delay = 1;
 	input->WaitForFrames(delay);
 //	void* videoFrame;
 	this->in = false;
 
-	if(input->imagelistFill.GetFrameCount()<1 || input->imagelistKey.GetFrameCount()<1)
-			return;
+	printf("Genlocked:%s Video:%d Key:%d Fill:%d Delay:%d Output:%d \r",
+								bGenGenlockStatus() ? "Yes" : "No",
+								(int) input->imagelistVideo.GetFrameCount(),
+								(int)(int) input->imagelistKey.GetFrameCount(),
+								(int)(int) input->imagelistFill.GetFrameCount(),
+								delay,
+								(int)(int) input->ImagelistOutput.GetFrameCount());
+
+//	if(input->imagelistFill.GetFrameCount()<1 || input->imagelistKey.GetFrameCount()<1)
+//			return;
+
+
 //	if(this->input->imagelistVideo.GetFrameCount()<1)return;
+
 
 
 	bool ready = this->input->imagelistVideo.GetFrameCount()>delay;
 	void* videoFrame = this->input->imagelistVideo.GetFrame(ready);
+	void* fillFrame = this->input->imagelistFill.GetFrame(true);
+	void* keyFrame = this->input->imagelistKey.GetFrame(true);
 //
 	if(!videoFrame)
 	{
 		this->in  = false;
 		return;
 	}
-
-	void* fillFrame = this->input->imagelistFill.GetFrame(true);
-	void* keyFrame = this->input->imagelistKey.GetFrame(true);
 
 
 
@@ -352,12 +370,14 @@ void Input::sendOut(uint4* output)
 
 void Input::clearAll()
 {
-	input->imagelistVideo.ClearAll(input->imagelistVideo.GetFrameCount());
-	input->imagelistFill.ClearAll(input->imagelistFill.GetFrameCount());
-	input->imagelistKey.ClearAll(input->imagelistKey.GetFrameCount());
-	input->ImagelistOutput.ClearAll(3);
+//	if(input->imagelistVideo.GetFrameCount()< 3) return;
+//	this->input->WaitForFrames(-1);
+	input->imagelistVideo.ClearAll(0);
+	input->imagelistFill.ClearAll(0);
+	input->imagelistKey.ClearAll(0);
+	input->ImagelistOutput.ClearAll(1);
 
-	std::cout<<input->ImagelistOutput.GetFrameCount()<<std::endl;
+
 
 }
 
@@ -512,7 +532,7 @@ void LookupTable::update(bool clickEn, MouseData* md, std::unordered_map<std::st
 						(this->iWidth / 2),
 						ws[WINDOW_TRACKBAR_OUTER_DIAM]*2,
 //						ws[WINDOW_TRACKBAR_UV_DIAM]*2,
-						2,
+						5,
 						ws[WINDOW_TRACKBAR_LUM],
 						ScalingValue,
 						255
@@ -526,7 +546,7 @@ void LookupTable::update(bool clickEn, MouseData* md, std::unordered_map<std::st
 		this->checkCudaError("synchronize host", " kernel: updateLookupFromMouse");
 		assert(this->cudaStatus==cudaSuccess);
 
-		md->bHandleLDown = false;
+//		md->bHandleLDown = false;
 		this->loaded = true;
 	}
 }
@@ -630,15 +650,15 @@ void ChrommaMask::create()
 	const dim3 block(16, 16);
 	const dim3 grid(iDivUp(srcAlignedWidth, block.x), iDivUp(this->iHeight, block.y));
 
-	lbpKernel<<<grid, block>>>(
-		(uint4*)this->augVideo,
-		this->maskBuffer,
-		this->iWidth/2,
-		this->iHeight,
-		this->key
-	);
-
-//	lbp2Mask<<<grid, block>>>(
+//	lbpKernel<<<grid, block>>>(
+//		(uint4*)this->augVideo,
+//		this->maskBuffer,
+//		this->iWidth/2,
+//		this->iHeight,
+//		this->key
+//	);
+//
+////	lbp2Mask<<<grid, block>>>(
 //			this->tMask,
 //			this->maskBuffer,
 //
@@ -647,16 +667,16 @@ void ChrommaMask::create()
 
 
 
-//	yuyv_Unpacked_GenerateMask <<<grid, block>>> (
-//			(uint4*)this->augVideo,
-//			this->maskBuffer,
-//			this->table->output(),
-//			this->iWidth,
-//			this->iHeight,
-//			srcAlignedWidth,
-//			dstAlignedWidth,
-//			0
-//			);
+	yuyv_Unpacked_GenerateMask <<<grid, block>>> (
+			(uint4*)this->augVideo,
+			this->maskBuffer,
+			this->table->output(),
+			this->iWidth,
+			this->iHeight,
+			srcAlignedWidth,
+			dstAlignedWidth,
+			0
+			);
 	this->cudaStatus = cudaGetLastError();
 	assert(this->cudaStatus==cudaSuccess);
 
@@ -822,7 +842,6 @@ void Pipeline::run()
 		event = this->container->getEvent();
 		input->run(settings->getTrackbarValues()[WINDOW_TRACKBAR_DELAY]);
 
-
 		if(input->isOutput())
 		{
 			this->mtx->lock();
@@ -830,7 +849,6 @@ void Pipeline::run()
 			preproc->reload(input->getPVideo(), input->getPKey(), input->getPFill());
 			preproc->unpack();
 			preproc->create((100.0-settings->getTrackbarValues()[WINDOW_TRACKBAR_BRIGHTNESS]*1.0)/100.0);
-//
 
 			switch(event)
 			{
@@ -838,6 +856,7 @@ void Pipeline::run()
 
 				keyingWindow->enableCapture();
 				keyingWindow->captured();
+//				chrommaMask->output();
 				break;
 
 			case WINDOW_EVENT_SAVE_IMAGE:
@@ -866,46 +885,34 @@ void Pipeline::run()
 				break;
 			}
 
+			chrommaMask->output();
+
 			if(chrommaMask->isMask())
 			{
+
 
 //				chrommaMask->output();
 //				chrommaMask->dilate(settings->getTrackbarValues()[WINDOW_TRACKBAR_DILATE]);
 //				chrommaMask->erode(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 //				chrommaMask->openMorph(settings->getTrackbarValues()[WINDOW_TRACKBAR_ERODE]);
 
-				#ifndef DEBUG
-//				chrommaMask->toRGB();
-//				prev.load(chrommaMask->getMaskRGB());
-//				prev.preview(maskPreview->getHandle());
-
-				#endif
 				keyer->create(settings->getTrackbarValues()[WINDOW_TRACKBAR_BLENDING]);
-
 				keyer->pack();
-
-				this->mtx->unlock();
-
 				input->sendOut(keyer->getOutput());
 
-				preproc->convertToRGB(preproc->getVideo());
-				prev.load(preproc->getRGB());
-				prev.preview(main->getHandle());
+//				this->mtx->unlock();
 
-
-
-			}else this->mtx->unlock();
+//
+			}else
 
 
 			if(keyingWindow->isCaptured())
 			{
 //				lookup->clearSelection(keyingWindow->isCaptured(), keyingWindow->getMD());
-				this->mtx->lock();
 				lookup->update(keyingWindow->isCaptured(), keyingWindow->getMD(), settings->getTrackbarValues());
-				input->clearAll();
-				this->mtx->unlock();
-				chrommaMask->output();
 			}
+
+			this->mtx->unlock();
 
 		}
 

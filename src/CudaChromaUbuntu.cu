@@ -21,7 +21,7 @@
 extern void initPosUDPData();
 extern void StartMonitor();
 extern void ExitMonitor();
-extern bool bGenGenlockStatus();
+
 
 using namespace cv;
 using namespace std;
@@ -31,7 +31,7 @@ using namespace cv::cuda;
 
 int main()
 {
-	std::mutex mtxScreenCard;
+	std::mutex mtxScreenCard, mtx2;
 	static int iIndex=0;
 	static int iFrameIndex=0;
 	StartMonitor();
@@ -91,10 +91,8 @@ int main()
 	auto t1 = std::chrono::system_clock::now();
 	while(!in->isOutput())
 	{
-		auto t1 = std::chrono::system_clock::now();
-		in->run(3);
-		auto t2 = std::chrono::system_clock::now();
-		std::cout<<std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()<<"ms"<<std::endl;
+		in->run(-1);
+
 	}
 
 
@@ -113,7 +111,7 @@ int main()
 	ChrommaMask *cm = new ChrommaMask(pp, lt);
 	cm->load(chrommaMask, maskRGB);
 	cm->setTextureMask(textureMask);
-
+//
 	YoloMask *yolo  = new YoloMask(pp);
 	yolo->load(inputData, detectionsOutput, maskOutput);
 	yolo->load(gpuBuffers);
@@ -144,7 +142,7 @@ int main()
 	uiContainer.addWindow(&maskPreview);
 	uiContainer.addWindow(&outputWindow);
 
-	Pipeline* pipeline = new Pipeline(&uiContainer, &mtxScreenCard);
+	Pipeline* pipeline = new Pipeline(&uiContainer, &mtx2);
 
 	pipeline->addPipelineObject(in, OBJECT_INPUT);
 	pipeline->addPipelineObject(pp, OBJECT_PREPROCESSOR);
@@ -157,12 +155,13 @@ int main()
 
 	std::thread *processingThread = new std::thread(&startPipeline, pipeline);
 
-	std::thread *previewThread = new std::thread(showPreview, cm, prev, pipeline, maskPreview.getHandle());
+//	std::thread *previewThread = new std::thread(showPreview, cm, prev, pipeline, maskPreview.getHandle());
 
 	while(uiContainer.dispatchKey()!= WINDOW_EVENT_EXIT)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 		uiContainer.dispatchEvent();
+
 		if(keyingWindow.isCaptured())// frame is captured
 		{
 			keyingWindow.update();
@@ -181,7 +180,7 @@ int main()
 
 	uiContainer.dispatchEvent();
 	processingThread->join();
-	previewThread->join();
+//	previewThread->join();
 
 	cudaFree(chrommaLookupBuffer);
 	cudaFree(chrommaMask);

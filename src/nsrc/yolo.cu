@@ -26,11 +26,11 @@ static Logger gLogger;
 
 YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members should be properly initialized")
 {
-	char *cwd = getenv("CWD");
-	std::string rootDir(cwd);
-	std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
-
-	api = new YoloAPI(obj, std::string("/home/jurie/Documents/Computer Vision/tensorrtx/yolov5/build/yolov5x-latest.engine"));
+//	char *cwd = getenv("CWD");
+//	std::string rootDir(cwd);
+//	std::string engine_name = rootDir+"/res/yolo-seg-4.engine";
+//
+//	api = new YoloAPI(obj, std::string("/home/jurie/Documents/Computer Vision/tensorrtx/yolov5/build/yolov5x-latest.engine"));
 
 	this->outputBufferDetections = nullptr;
 	this->outputBufferMask = nullptr;
@@ -52,33 +52,6 @@ YoloMask::YoloMask(IPipeline *obj): IMask(obj) // @suppress("Class members shoul
 
 void YoloMask::initialize()
 {
-//	this->started = false;
-//	cudaSetDevice(kGpuId);
-
-//
-
-//	std::ifstream engine_file(engine_name, std::ios::binary);
-//
-//	if(!engine_file)
-//	{
-//		std::cerr<<"Engine File doesn't exist: \n"<<"Path: "<<engine_name<<std::endl;
-//		return;
-//	}
-//
-//	deserialize_engine(engine_name, &runtime, &engine, &context);
-//
-//	assert(engine->getNbBindings() == 3);
-//	// In order to bind the buffers, we need to know the names of the input and output tensors.
-//	// Note that indices are guaranteed to be less than IEngine::getNbBindings()
-//	const int inputIndex = engine->getBindingIndex(kInputTensorName);
-//	const int outputIndex1 = engine->getBindingIndex(kOutputTensorName);
-//	const int outputIndex2 = engine->getBindingIndex("proto"); // mask
-//	assert(inputIndex == 0);
-//	assert(outputIndex1 == 1);
-//	assert(outputIndex2 == 2);
-
-//	initYolo();
-
 	this->started = true;
 }
 
